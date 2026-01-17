@@ -1,0 +1,198 @@
+---
+title: Optimizer Configs
+description: Optimizer and learning rate scheduler configurations
+---
+
+## Optimizers
+
+### AdamWConfig
+
+Adam optimizer with decoupled weight decay.
+
+```python
+from onyxengine.modeling import AdamWConfig
+
+optimizer = AdamWConfig(
+    lr: float = 3e-4,
+    weight_decay: float = 1e-2
+)
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `lr` | 3e-4 | Learning rate |
+| `weight_decay` | 1e-2 | L2 regularization strength |
+
+**Example:**
+```python
+optimizer = AdamWConfig(lr=3e-4, weight_decay=1e-2)
+```
+
+### SGDConfig
+
+Stochastic Gradient Descent with momentum.
+
+```python
+from onyxengine.modeling import SGDConfig
+
+optimizer = SGDConfig(
+    lr: float = 1e-3,
+    weight_decay: float = 1e-4,
+    momentum: float = 0.9
+)
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `lr` | 1e-3 | Learning rate |
+| `weight_decay` | 1e-4 | L2 regularization strength |
+| `momentum` | 0.9 | Momentum factor |
+
+**Example:**
+```python
+optimizer = SGDConfig(lr=1e-3, weight_decay=1e-4, momentum=0.95)
+```
+
+## Learning Rate Schedulers
+
+### CosineDecayWithWarmupConfig
+
+Linear warmup followed by cosine decay.
+
+```python
+from onyxengine.modeling import CosineDecayWithWarmupConfig
+
+scheduler = CosineDecayWithWarmupConfig(
+    max_lr: float = 3e-4,
+    min_lr: float = 3e-5,
+    warmup_iters: int = 200,
+    decay_iters: int = 1000
+)
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `max_lr` | 3e-4 | Peak learning rate (after warmup) |
+| `min_lr` | 3e-5 | Final learning rate (after decay) |
+| `warmup_iters` | 200 | Iterations to ramp up to max_lr |
+| `decay_iters` | 1000 | Iterations for cosine decay |
+
+**Example:**
+```python
+scheduler = CosineDecayWithWarmupConfig(
+    max_lr=1e-3,
+    min_lr=1e-5,
+    warmup_iters=500,
+    decay_iters=5000
+)
+```
+
+### CosineAnnealingWarmRestartsConfig
+
+Cosine annealing with periodic restarts.
+
+```python
+from onyxengine.modeling import CosineAnnealingWarmRestartsConfig
+
+scheduler = CosineAnnealingWarmRestartsConfig(
+    T_0: int = 500,
+    T_mult: int = 1,
+    eta_min: float = 1e-5
+)
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `T_0` | 500 | Initial cycle length |
+| `T_mult` | 1 | Cycle length multiplier (1 = same length) |
+| `eta_min` | 1e-5 | Minimum learning rate |
+
+**Example:**
+```python
+scheduler = CosineAnnealingWarmRestartsConfig(
+    T_0=1000,
+    T_mult=2,  # Each cycle is 2x longer
+    eta_min=1e-6
+)
+```
+
+## Optimization Configs
+
+For hyperparameter search, use the `OptConfig` variants:
+
+### AdamWOptConfig
+
+```python
+from onyxengine.modeling import AdamWOptConfig
+
+adamw_opt = AdamWOptConfig(
+    lr={"select": [1e-5, 1e-4, 3e-4, 1e-3]},
+    weight_decay={"select": [1e-4, 1e-3, 1e-2]}
+)
+```
+
+### SGDOptConfig
+
+```python
+from onyxengine.modeling import SGDOptConfig
+
+sgd_opt = SGDOptConfig(
+    lr={"select": [1e-4, 1e-3, 1e-2]},
+    weight_decay={"select": [1e-4, 1e-3]},
+    momentum={"select": [0.9, 0.95, 0.99]}
+)
+```
+
+### CosineDecayWithWarmupOptConfig
+
+```python
+from onyxengine.modeling import CosineDecayWithWarmupOptConfig
+
+lr_opt = CosineDecayWithWarmupOptConfig(
+    max_lr={"select": [3e-4, 1e-3, 3e-3]},
+    min_lr={"select": [1e-6, 1e-5, 1e-4]},
+    warmup_iters={"select": [100, 200, 400]},
+    decay_iters={"select": [1000, 2000, 5000]}
+)
+```
+
+### CosineAnnealingWarmRestartsOptConfig
+
+```python
+from onyxengine.modeling import CosineAnnealingWarmRestartsOptConfig
+
+lr_opt = CosineAnnealingWarmRestartsOptConfig(
+    T_0={"select": [500, 1000, 2000]},
+    T_mult={"select": [1, 2]},
+    eta_min={"select": [1e-6, 1e-5, 1e-4]}
+)
+```
+
+## Typical Configurations
+
+### Quick Experimentation
+
+```python
+training_config = TrainingConfig(
+    training_iters=2000,
+    train_batch_size=256,
+    optimizer=AdamWConfig(lr=3e-4),
+    lr_scheduler=None
+)
+```
+
+### Production Training
+
+```python
+training_config = TrainingConfig(
+    training_iters=10000,
+    train_batch_size=1024,
+    optimizer=AdamWConfig(lr=1e-3, weight_decay=1e-2),
+    lr_scheduler=CosineDecayWithWarmupConfig(
+        max_lr=1e-3,
+        min_lr=1e-5,
+        warmup_iters=500,
+        decay_iters=8000
+    )
+)
+```

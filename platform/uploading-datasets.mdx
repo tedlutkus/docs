@@ -1,0 +1,169 @@
+---
+title: Uploading Datasets
+description: Upload and process data through the web platform
+---
+
+Upload your hardware data through the Onyx Engine platform to prepare it for model training.
+
+## Upload Methods
+
+You can upload data in three ways:
+
+1. **Upload button**: Click "Upload" from the System Overview or Table view
+2. **Drag and drop**: Drag files directly into the System Overview or Table
+3. **SDK**: Use `onyx.save_dataset()` for programmatic uploads
+
+<Frame>
+  <img src="/images/upload.png" alt="Dataset upload interface" />
+</Frame>
+
+## Supported Formats
+
+| Format | Extension | Notes |
+|--------|-----------|-------|
+| CSV | `.csv` | Most common, good for small-medium datasets |
+| Parquet | `.parquet` | Efficient for large datasets |
+
+## Data Requirements
+
+### Structure
+
+Your data should be a timeseries with:
+
+- **Rows**: Sequential timesteps
+- **Columns**: Features (states, outputs, inputs)
+- **Consistent sampling**: Regular time intervals between rows
+
+### Example Data
+
+```csv
+time,acceleration,velocity,position,control_input
+0.000,0.12,0.0,0.0,0.5
+0.010,0.15,0.0012,0.0,0.5
+0.020,0.18,0.0027,0.00001,0.5
+0.030,0.14,0.0041,0.00003,0.5
+```
+
+### Requirements Checklist
+
+<Checklist>
+- Numeric columns for all features
+- No missing values (NaN)
+- Regular time step between rows
+- At least several hundred rows
+- Column names without special characters
+</Checklist>
+
+## Upload Workflow
+
+<Steps>
+  <Step title="Select Files">
+    Click Upload or drag your data file into the platform
+  </Step>
+  <Step title="Review Preview">
+    Check the data preview to verify columns and format
+  </Step>
+  <Step title="Configure">
+    Set the dataset name and time step (dt)
+  </Step>
+  <Step title="Upload">
+    Click Upload to start processing
+  </Step>
+</Steps>
+
+## Processing
+
+After upload, the platform processes your data:
+
+<Frame>
+  <img src="/images/processing.png" alt="Dataset processing view" />
+</Frame>
+
+Processing includes:
+- Format validation
+- Statistics calculation
+- Indexing for training
+
+The dataset status shows:
+- **Processing**: Upload in progress
+- **Active**: Ready for training
+- **Error**: Issues detected (check format)
+
+## Data Preparation Tips
+
+### Collecting Data
+
+- **Sampling rate**: 50-400Hz works well for most hardware
+- **Duration**: Less than one hour of data is typically sufficient
+- **Coverage**: Include varied operating conditions
+
+### Cleaning Data
+
+Before uploading:
+
+```python
+import pandas as pd
+
+# Load your data
+df = pd.read_csv('raw_data.csv')
+
+# Remove NaN values
+df = df.dropna()
+
+# Convert to float32 for efficiency
+for col in df.columns:
+    if df[col].dtype == 'float64':
+        df[col] = df[col].astype('float32')
+
+# Save cleaned data
+df.to_csv('clean_data.csv', index=False)
+```
+
+### Multiple Files
+
+If your data is split across multiple files (e.g., separate episodes):
+
+1. Upload all files together
+2. The platform concatenates them vertically
+3. They become one continuous timeseries
+
+<Warning>
+Ensure all files have identical columns in the same order.
+</Warning>
+
+## Viewing Dataset Details
+
+After processing, click on the dataset to view:
+
+<Frame>
+  <img src="/images/dataset.png" alt="Dataset details view" />
+</Frame>
+
+- **Features**: List of columns
+- **Statistics**: Min, max, mean, std for each feature
+- **Metadata**: Time step, number of points, memory size
+
+## Using the Inspector
+
+Quick-view any dataset by clicking its node in the System Overview:
+
+<Frame>
+  <img src="/images/inspector.png" alt="Inspector panel" />
+</Frame>
+
+The Inspector shows:
+- Dataset name and version
+- Creation date
+- Feature list
+- Quick actions (view, delete)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Training via UI" icon="play" href="/platform/training-via-ui">
+    Train a model on your dataset
+  </Card>
+  <Card title="SDK Upload" icon="code" href="/tutorials/working-with-datasets">
+    Upload datasets programmatically
+  </Card>
+</CardGroup>

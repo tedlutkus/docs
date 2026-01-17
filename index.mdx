@@ -1,97 +1,97 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: Onyx Engine
+description: Train AI models for hardware simulation and control
 ---
 
-## Setting up
+Onyx Engine is a Python library and cloud platform for training AI models that simulate and control hardware systems. Build accurate digital twins of your physical systems using your hardware data.
 
-Get your documentation site up and running in minutes.
+## Key Features
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Data-Efficient Training" icon="bolt">
+    Train models with less than one hour of data at modest sampling rates (50-400Hz)
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Built-in Simulation" icon="play">
+    Models include a `simulate()` method for multi-step trajectory prediction with automatic state management
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Multiple Architectures" icon="cubes">
+    Choose from MLP, RNN (LSTM/GRU), or Transformer architectures with a consistent API
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Hyperparameter Optimization" icon="sliders">
+    Automatically search for the best model architecture and training parameters
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## What You Can Build
 
-Everything you need to create world-class documentation.
+Onyx Engine is designed for controls engineers who need AI models that:
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+- **Predict system dynamics** - Model acceleration, velocity, and position relationships
+- **Handle state-space representations** - Define derivative and delta relationships between features
+- **Run fast inference** - Deploy models optimized for real-time control loops
+- **Simulate trajectories** - Roll out multi-step predictions with automatic state updates
 
-## Need inspiration?
+## How It Works
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<Steps>
+  <Step title="Prepare Your Data">
+    Collect timeseries data from your hardware system with states, outputs, and control inputs
+  </Step>
+  <Step title="Define Features">
+    Specify which features are model outputs and which are inputs, including state relationships
+  </Step>
+  <Step title="Train a Model">
+    Use the cloud platform to train models with GPU acceleration
+  </Step>
+  <Step title="Simulate">
+    Load your trained model and simulate trajectories for control and analysis
+  </Step>
+</Steps>
+
+## Quick Example
+
+```python
+import onyxengine as onyx
+from onyxengine.modeling import Input, Output, MLPConfig, TrainingConfig
+
+# Define model structure
+outputs = [Output(name='acceleration')]
+inputs = [
+    Input(name='velocity', parent='acceleration', relation='derivative'),
+    Input(name='position', parent='velocity', relation='derivative'),
+    Input(name='control_input'),
+]
+
+# Configure and train
+model_config = MLPConfig(outputs=outputs, inputs=inputs, dt=0.01)
+onyx.train_model(
+    model_name='my_model',
+    model_config=model_config,
+    dataset_name='my_dataset',
+)
+
+# Load and simulate
+model = onyx.load_model('my_model')
+result = model.simulate(
+    x0={'velocity': v0, 'position': p0},
+    external_inputs={'control_input': u},
+    sim_steps=100
+)
+```
+
+## Get Started
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Train your first model in 5 minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Set up your account and install the SDK
+  </Card>
+  <Card title="Training Tutorial" icon="graduation-cap" href="/tutorials/training-models">
+    Complete guide to training models
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference">
+    Detailed documentation for all functions and classes
+  </Card>
+</CardGroup>

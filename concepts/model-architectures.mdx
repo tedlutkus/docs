@@ -1,0 +1,247 @@
+---
+title: Model Architectures
+description: Compare MLP, RNN, and Transformer architectures for hardware modeling
+---
+
+Onyx Engine provides three neural network architectures optimized for hardware simulation: MLP, RNN, and Transformer. Each has different strengths depending on your system's dynamics.
+
+## Architecture Overview
+
+| Architecture | Best For | Temporal Handling | Training Speed |
+|--------------|----------|-------------------|----------------|
+| **MLP** | Simple dynamics, fast inference | Fixed window | Fastest |
+| **RNN** | Sequential patterns, long dependencies | Recurrent state | Medium |
+| **Transformer** | Complex interactions, variable contexts | Self-attention | Slowest |
+
+## Multi-Layer Perceptron (MLP)
+
+The MLP flattens the input sequence into a single vector and processes it through fully-connected layers.
+
+### Architecture
+
+```
+Input: (batch, sequence_length, num_inputs)
+  ↓ Flatten
+  ↓ Linear → LayerNorm → Activation → Dropout
+  ↓ Linear → LayerNorm → Activation → Dropout
+  ↓ ... (hidden_layers times)
+  ↓ Linear
+Output: (batch, num_outputs)
+```
+
+### Configuration
+
+```python
+from onyxengine.modeling import MLPConfig
+
+config = MLPConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.01,
+    sequence_length=8,      # Input history window
+    hidden_layers=3,        # Number of hidden layers (1-10)
+    hidden_size=64,         # Neurons per layer (1-1024)
+    activation='relu',      # 'relu', 'gelu', 'tanh', 'sigmoid'
+    dropout=0.2,            # Dropout rate (0.0-1.0)
+    bias=True               # Include bias terms
+)
+```
+
+### When to Use
+
+- Systems with relatively simple dynamics
+- When inference speed is critical
+- As a baseline before trying more complex architectures
+- When you have limited training data
+
+### Strengths
+
+- Fastest training and inference
+- Fewest parameters for a given capacity
+- Works well with short sequence lengths
+
+### Limitations
+
+- Fixed-length input window
+- Limited ability to capture long-range temporal dependencies
+- May struggle with highly nonlinear dynamics
+
+## Recurrent Neural Network (RNN)
+
+RNNs process sequences step-by-step, maintaining hidden state that captures temporal patterns.
+
+### Architecture
+
+```
+Input: (batch, sequence_length, num_inputs)
+  ↓ RNN/LSTM/GRU layers (with hidden state)
+  ↓ Linear
+Output: (batch, num_outputs)
+```
+
+### Configuration
+
+```python
+from onyxengine.modeling import RNNConfig
+
+config = RNNConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.01,
+    sequence_length=12,
+    rnn_type='LSTM',        # 'RNN', 'LSTM', 'GRU'
+    hidden_layers=2,        # Number of RNN layers (1-10)
+    hidden_size=64,         # Hidden state dimension (1-1024)
+    dropout=0.1,            # Dropout between layers (0.0-1.0)
+    bias=True               # Include bias terms
+)
+```
+
+### RNN Types
+
+| Type | Description | Best For |
+|------|-------------|----------|
+| `'RNN'` | Basic recurrent unit | Simple sequences |
+| `'LSTM'` | Long Short-Term Memory | Long-range dependencies |
+| `'GRU'` | Gated Recurrent Unit | Balance of LSTM benefits with fewer params |
+
+### When to Use
+
+- Systems with strong temporal dependencies
+- When longer sequence context improves predictions
+- Systems where recent history matters more than distant past
+
+### Strengths
+
+- Natural handling of sequential data
+- Can capture longer temporal patterns than MLP
+- LSTM/GRU handle vanishing gradient problem
+
+### Limitations
+
+- Sequential processing limits parallelization
+- Slower training than MLP
+- May overfit on small datasets
+
+## Transformer
+
+Transformers use self-attention to relate all positions in the input sequence directly.
+
+### Architecture
+
+```
+Input: (batch, sequence_length, num_inputs)
+  ↓ Linear embedding
+  ↓ Positional encoding
+  ↓ Multi-head self-attention + Feed-forward
+  ↓ ... (n_layer times)
+  ↓ Linear
+Output: (batch, num_outputs)
+```
+
+### Configuration
+
+```python
+from onyxengine.modeling import TransformerConfig
+
+config = TransformerConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.01,
+    sequence_length=16,
+    n_layer=2,              # Transformer blocks (1-10)
+    n_head=4,               # Attention heads (1-12)
+    n_embd=64,              # Embedding dimension (must be divisible by n_head)
+    dropout=0.1,            # Dropout rate (0.0-1.0)
+    bias=True               # Include bias terms
+)
+```
+
+### When to Use
+
+- Complex systems with multiple interacting dynamics
+- When you need to capture relationships across the full sequence
+- Systems where both recent and distant history matter equally
+
+### Strengths
+
+- Parallel processing of sequence elements
+- Direct modeling of long-range dependencies
+- Flexible attention patterns
+
+### Limitations
+
+- Slowest to train
+- Memory usage scales quadratically with sequence length
+- May need more data to train effectively
+
+## Choosing an Architecture
+
+### Decision Guide
+
+<Steps>
+  <Step title="Start with MLP">
+    Use a simple MLP as your baseline. If it achieves good single-step accuracy, you may not need a more complex architecture.
+  </Step>
+  <Step title="Try sequence length first">
+    Before switching architectures, try increasing `sequence_length`. Often a longer MLP window captures enough temporal context.
+  </Step>
+  <Step title="Move to RNN for temporal patterns">
+    If increasing sequence length helps but plateaus, try an LSTM or GRU. They're better at extracting patterns from longer sequences.
+  </Step>
+  <Step title="Consider Transformer for complex systems">
+    For systems with multiple interacting components or where relationships between distant timesteps matter, try a Transformer.
+  </Step>
+</Steps>
+
+### Quick Comparison
+
+```python
+# All architectures share the same interface
+from onyxengine.modeling import MLPConfig, RNNConfig, TransformerConfig
+
+# Same outputs and inputs work with any architecture
+outputs = [Output(name='acceleration')]
+inputs = [
+    Input(name='velocity', parent='acceleration', relation='derivative'),
+    Input(name='position', parent='velocity', relation='derivative'),
+    Input(name='control'),
+]
+
+# MLP: ~3,000 parameters for typical config
+mlp = MLPConfig(outputs=outputs, inputs=inputs, dt=0.01,
+                sequence_length=8, hidden_layers=2, hidden_size=32)
+
+# RNN: ~8,000 parameters for typical config
+rnn = RNNConfig(outputs=outputs, inputs=inputs, dt=0.01,
+                sequence_length=8, rnn_type='LSTM', hidden_layers=2, hidden_size=32)
+
+# Transformer: ~12,000 parameters for typical config
+transformer = TransformerConfig(outputs=outputs, inputs=inputs, dt=0.01,
+                                sequence_length=8, n_layer=2, n_head=4, n_embd=32)
+```
+
+## Sequence Length Considerations
+
+The `sequence_length` parameter affects all architectures differently:
+
+| Architecture | Effect of Longer Sequence |
+|--------------|--------------------------|
+| MLP | Linear increase in parameters (flattened input) |
+| RNN | More steps to process, similar parameter count |
+| Transformer | Quadratic increase in attention computation |
+
+<Tip>
+Start with `sequence_length=1` and increase until you see diminishing returns on validation loss.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Feature Engineering" icon="gear" href="/concepts/feature-engineering">
+    Define inputs, outputs, and state relationships
+  </Card>
+  <Card title="Training Configuration" icon="sliders" href="/concepts/training-configuration">
+    Configure optimizers and schedulers
+  </Card>
+</CardGroup>

@@ -1,0 +1,325 @@
+---
+title: Training Models
+description: Configure and train AI models on your hardware data
+---
+
+This tutorial covers the complete workflow for training models in Onyx Engine, from defining your model structure to monitoring training progress.
+
+## Complete Training Example
+
+Here's a full training script you can use as a starting point:
+
+```python
+from onyxengine.modeling import (
+    Output,
+    Input,
+    MLPConfig,
+    TrainingConfig,
+    AdamWConfig,
+    CosineDecayWithWarmupConfig
+)
+import onyxengine as onyx
+
+# Define model structure
+outputs = [
+    Output(name='acceleration_predicted'),
+]
+inputs = [
+    Input(name='velocity', parent='acceleration_predicted', relation='derivative'),
+    Input(name='position', parent='velocity', relation='derivative'),
+    Input(name='control_input'),
+]
+
+# Configure the model
+model_config = MLPConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.0025,
+    sequence_length=8,
+    hidden_layers=3,
+    hidden_size=64,
+    activation='relu',
+    dropout=0.2,
+    bias=True
+)
+
+# Configure training
+training_config = TrainingConfig(
+    training_iters=2000,
+    train_batch_size=1024,
+    test_dataset_size=500,
+    checkpoint_type='single_step',
+    optimizer=AdamWConfig(lr=3e-4, weight_decay=1e-2),
+    lr_scheduler=CosineDecayWithWarmupConfig(
+        max_lr=3e-4,
+        min_lr=3e-5,
+        warmup_iters=200,
+        decay_iters=1000
+    )
+)
+
+# Start training
+onyx.train_model(
+    model_name='example_model',
+    model_config=model_config,
+    dataset_name='example_train_data',
+    training_config=training_config,
+    monitor_training=True
+)
+```
+
+## Defining Model Structure
+
+### Outputs
+
+Outputs are the features your model predicts. Typically this is the derivative or delta of your system state:
+
+```python
+outputs = [
+    Output(name='acceleration_predicted'),
+]
+```
+
+For multi-output models:
+
+```python
+outputs = [
+    Output(name='acceleration_x'),
+    Output(name='acceleration_y'),
+    Output(name='acceleration_z'),
+]
+```
+
+### Inputs
+
+Inputs include both **states** (derived from outputs) and **external inputs** (known values):
+
+```python
+inputs = [
+    # States - derived from model outputs
+    Input(name='velocity', parent='acceleration_predicted', relation='derivative'),
+    Input(name='position', parent='velocity', relation='derivative'),
+
+    # External inputs - known at each timestep
+    Input(name='control_input'),
+    Input(name='load_force'),
+]
+```
+
+States define how the simulation rolls forward. The `relation` parameter specifies the mathematical relationship:
+
+| Relation | Equation | Use Case |
+|----------|----------|----------|
+| `'derivative'` | `state[t+1] = state[t] + parent[t] * dt` | Velocity from acceleration |
+| `'delta'` | `state[t+1] = state[t] + parent[t]` | Position from displacement |
+| `'equal'` | `state[t+1] = parent[t]` | Direct assignment |
+
+<Tip>
+The `name` parameter should match the column name in your dataset. If they differ, use `dataset_feature` to specify the dataset column name.
+</Tip>
+
+## Model Configuration
+
+### MLP (Multi-Layer Perceptron)
+
+Best for systems with relatively simple dynamics:
+
+```python
+from onyxengine.modeling import MLPConfig
+
+model_config = MLPConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.0025,              # Time step (must match dataset)
+    sequence_length=8,       # Input history length
+    hidden_layers=3,         # Number of hidden layers
+    hidden_size=64,          # Neurons per layer
+    activation='relu',       # Activation function
+    dropout=0.2,             # Regularization
+    bias=True                # Include bias terms
+)
+```
+
+### RNN (Recurrent Neural Network)
+
+Better for systems with complex temporal dependencies:
+
+```python
+from onyxengine.modeling import RNNConfig
+
+model_config = RNNConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.0025,
+    sequence_length=10,
+    rnn_type='LSTM',         # 'RNN', 'LSTM', or 'GRU'
+    hidden_layers=2,
+    hidden_size=64,
+    dropout=0.1,
+    bias=True
+)
+```
+
+### Transformer
+
+Powerful for capturing long-range dependencies:
+
+```python
+from onyxengine.modeling import TransformerConfig
+
+model_config = TransformerConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.0025,
+    sequence_length=10,
+    n_layer=2,               # Transformer layers
+    n_head=4,                # Attention heads
+    n_embd=64,               # Embedding dimension
+    dropout=0.2,
+    bias=True
+)
+```
+
+<Note>
+For `TransformerConfig`, `n_embd` must be divisible by `n_head`.
+</Note>
+
+## Training Configuration
+
+```python
+from onyxengine.modeling import TrainingConfig, AdamWConfig
+
+training_config = TrainingConfig(
+    training_iters=2000,          # Total training iterations
+    train_batch_size=1024,        # Samples per batch
+    train_val_split_ratio=0.9,    # Train/validation split
+    test_dataset_size=500,        # Samples for test visualization
+    checkpoint_type='single_step', # Optimization target
+    optimizer=AdamWConfig(lr=3e-4, weight_decay=1e-2),
+    lr_scheduler=None             # Optional learning rate scheduler
+)
+```
+
+### Checkpoint Types
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `'single_step'` | Optimize for next-step prediction | General training, debugging |
+| `'multi_step'` | Optimize for trajectory simulation | Final model selection |
+
+<Tip>
+Start with `single_step` to verify your model learns the dynamics, then switch to `multi_step` for deployment-ready models.
+</Tip>
+
+### Optimizers
+
+**AdamW** (recommended for most cases):
+
+```python
+from onyxengine.modeling import AdamWConfig
+
+optimizer = AdamWConfig(
+    lr=3e-4,           # Learning rate
+    weight_decay=1e-2  # L2 regularization
+)
+```
+
+**SGD** (for fine-tuning or specific cases):
+
+```python
+from onyxengine.modeling import SGDConfig
+
+optimizer = SGDConfig(
+    lr=1e-3,
+    weight_decay=1e-4,
+    momentum=0.9
+)
+```
+
+### Learning Rate Schedulers
+
+**Cosine Decay with Warmup**:
+
+```python
+from onyxengine.modeling import CosineDecayWithWarmupConfig
+
+lr_scheduler = CosineDecayWithWarmupConfig(
+    max_lr=3e-4,        # Peak learning rate
+    min_lr=3e-5,        # Final learning rate
+    warmup_iters=200,   # Warmup period
+    decay_iters=1000    # Decay period
+)
+```
+
+**Cosine Annealing with Warm Restarts**:
+
+```python
+from onyxengine.modeling import CosineAnnealingWarmRestartsConfig
+
+lr_scheduler = CosineAnnealingWarmRestartsConfig(
+    T_0=500,           # Initial cycle length
+    T_mult=2,          # Cycle length multiplier
+    eta_min=1e-5       # Minimum learning rate
+)
+```
+
+## Running Training
+
+```python
+onyx.train_model(
+    model_name='my_model',           # Name for the trained model
+    model_config=model_config,
+    dataset_name='my_dataset',       # Dataset to train on
+    dataset_version_id=None,         # Optional: specific dataset version
+    training_config=training_config,
+    monitor_training=True            # Show progress in terminal
+)
+```
+
+With `monitor_training=True`, you'll see real-time progress. You can also monitor via the [Engine Platform](https://engine.onyx-robotics.com) for detailed loss curves and predictions.
+
+## After Training
+
+### Load Your Model
+
+```python
+model = onyx.load_model('my_model')
+print(model.config)
+```
+
+### Load a Specific Version
+
+```python
+model = onyx.load_model('my_model', version_id='dcfec841-1748-47e2-b6c7-3c821cc69b4a')
+```
+
+## Tips for Better Training
+
+<AccordionGroup>
+  <Accordion title="Start with more sequence length">
+    If your initial results are poor, try increasing `sequence_length`. This gives the model more temporal context.
+  </Accordion>
+
+  <Accordion title="Match dt to your data">
+    The `dt` parameter must match your dataset's actual time step. Incorrect values cause integration errors during simulation.
+  </Accordion>
+
+  <Accordion title="Use dropout for regularization">
+    Values between 0.1 and 0.3 typically work well. Increase if you see overfitting (training loss much lower than validation loss).
+  </Accordion>
+
+  <Accordion title="Try different architectures">
+    If an MLP isn't capturing your dynamics, try an RNN or Transformer. Each architecture has different strengths for different system types.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Optimizing Models" icon="sliders" href="/tutorials/optimizing-models">
+    Automatically search for the best hyperparameters
+  </Card>
+  <Card title="Simulating Models" icon="play" href="/tutorials/simulating-models">
+    Deploy your trained model for simulation
+  </Card>
+</CardGroup>

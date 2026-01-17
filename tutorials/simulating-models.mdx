@@ -1,0 +1,291 @@
+---
+title: Simulating Models
+description: Run multi-step trajectory simulations with trained models
+---
+
+Onyx models include a built-in `simulate()` method that handles multi-step prediction with automatic state integration. This tutorial covers how to use simulation for deployment and analysis.
+
+## Basic Simulation
+
+```python
+import torch
+import onyxengine as onyx
+
+# Load a trained model
+model = onyx.load_model('example_model')
+
+# Get model parameters
+batch_size = 1
+seq_length = model.config.sequence_length
+sim_steps = 100
+
+# Create initial state tensors (shape: batch_size, seq_length, 1)
+velocity = torch.zeros(batch_size, seq_length, 1)
+position = torch.zeros(batch_size, seq_length, 1)
+
+# Create external input tensor (shape: batch_size, seq_length + sim_steps, 1)
+control_input = torch.ones(batch_size, seq_length + sim_steps, 1) * 0.5
+
+# Run simulation
+result = model.simulate(
+    x0={'velocity': velocity, 'position': position},
+    external_inputs={'control_input': control_input},
+    sim_steps=sim_steps
+)
+
+# Access results
+print("Velocity:", result.inputs['velocity'].shape)
+print("Position:", result.inputs['position'].shape)
+print("Acceleration:", result.outputs['acceleration_predicted'].shape)
+```
+
+## Understanding the simulate() API
+
+### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `x0` | `Dict[str, Tensor]` | Initial state values for derived inputs |
+| `external_inputs` | `Dict[str, Tensor]` | External inputs for the full trajectory |
+| `sim_steps` | `int` | Number of simulation steps (optional if inferable) |
+| `device` | `torch.device` | Target device (default: input tensor device) |
+| `dtype` | `torch.dtype` | Target dtype (default: input tensor dtype) |
+
+### Tensor Shapes
+
+All tensors must be 3D with shape `(batch_size, time_steps, 1)`:
+
+- **x0 tensors**: `(batch_size, sequence_length, 1)`
+- **external_inputs tensors**: `(batch_size, sequence_length + sim_steps, 1)`
+
+### Return Value
+
+`simulate()` returns a `SimulationResult` object with two `FeatureTrajectory` attributes:
+
+```python
+result = model.simulate(...)
+
+# Access input trajectories (states + external inputs)
+result.inputs['velocity']      # Shape: (batch_size, seq_length + sim_steps, 1)
+result.inputs['position']      # Shape: (batch_size, seq_length + sim_steps, 1)
+result.inputs['control_input'] # Shape: (batch_size, seq_length + sim_steps, 1)
+
+# Access output trajectories
+result.outputs['acceleration_predicted']  # Shape: (batch_size, sim_steps, 1)
+
+# Get full tensors
+full_input_tensor = result.inputs.tensor    # All inputs stacked
+full_output_tensor = result.outputs.tensor  # All outputs stacked
+```
+
+## State Integration
+
+During simulation, states update automatically based on their `relation`:
+
+### Derivative Relation
+
+For `Input(name='velocity', parent='acceleration', relation='derivative')`:
+
+```
+velocity[t+1] = velocity[t] + acceleration[t] * dt
+```
+
+### Delta Relation
+
+For `Input(name='position', parent='displacement', relation='delta')`:
+
+```
+position[t+1] = position[t] + displacement[t]
+```
+
+### Equal Relation
+
+For `Input(name='state', parent='output', relation='equal')`:
+
+```
+state[t+1] = output[t]
+```
+
+## Batch Simulation
+
+Simulate multiple trajectories in parallel for GPU efficiency:
+
+```python
+batch_size = 100
+seq_length = model.config.sequence_length
+sim_steps = 200
+
+# Batch of different initial conditions
+velocity_batch = torch.randn(batch_size, seq_length, 1)
+position_batch = torch.randn(batch_size, seq_length, 1)
+
+# Same control input for all (or different per batch)
+control_batch = torch.sin(
+    torch.linspace(0, 10, seq_length + sim_steps)
+).unsqueeze(0).unsqueeze(-1).expand(batch_size, -1, 1)
+
+result = model.simulate(
+    x0={'velocity': velocity_batch, 'position': position_batch},
+    external_inputs={'control_input': control_batch},
+    sim_steps=sim_steps
+)
+
+# Result shapes: (100, sim_steps, 1)
+```
+
+## GPU Acceleration
+
+Move computation to GPU for faster simulation:
+
+```python
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# Tensors on GPU
+velocity = torch.zeros(batch_size, seq_length, 1, device=device)
+position = torch.zeros(batch_size, seq_length, 1, device=device)
+control = torch.ones(batch_size, seq_length + sim_steps, 1, device=device)
+
+# Model moves to GPU automatically
+result = model.simulate(
+    x0={'velocity': velocity, 'position': position},
+    external_inputs={'control_input': control},
+    sim_steps=sim_steps,
+    device=device
+)
+```
+
+## Step-by-Step Simulation
+
+For control applications where you compute inputs at each step:
+
+```python
+import torch
+import onyxengine as onyx
+
+model = onyx.load_model('example_model')
+seq_length = model.config.sequence_length
+
+# Initialize state history
+velocity_history = torch.zeros(1, seq_length, 1)
+position_history = torch.zeros(1, seq_length, 1)
+
+# Storage for results
+all_velocities = [velocity_history.clone()]
+all_positions = [position_history.clone()]
+
+# Simulation loop
+total_steps = 100
+for step in range(total_steps):
+    # Compute control input (e.g., from a controller)
+    current_position = position_history[:, -1, :]
+    control = compute_control(current_position)  # Your controller
+
+    # Create input for one step
+    control_input = torch.cat([
+        torch.zeros(1, seq_length, 1),  # History (not used for external)
+        control.unsqueeze(1)             # Current step
+    ], dim=1)
+
+    # Simulate one step
+    result = model.simulate(
+        x0={'velocity': velocity_history, 'position': position_history},
+        external_inputs={'control_input': control_input},
+        sim_steps=1
+    )
+
+    # Update history with new values
+    new_velocity = result.inputs['velocity'][:, -1:, :]
+    new_position = result.inputs['position'][:, -1:, :]
+
+    velocity_history = torch.cat([velocity_history[:, 1:, :], new_velocity], dim=1)
+    position_history = torch.cat([position_history[:, 1:, :], new_position], dim=1)
+
+    all_velocities.append(new_velocity)
+    all_positions.append(new_position)
+```
+
+## Direct Model Inference
+
+For single-step prediction without state integration:
+
+```python
+# Direct forward pass (single step, no state integration)
+batch_size = 1
+seq_length = model.config.sequence_length
+num_inputs = len(model.config.inputs)
+
+# Input tensor with all features
+x = torch.randn(batch_size, seq_length, num_inputs)
+
+with torch.no_grad():
+    output = model(x)  # Shape: (batch_size, num_outputs)
+```
+
+<Warning>
+Direct inference doesn't apply feature scaling or state integration. Use `simulate()` for deployment.
+</Warning>
+
+## Working with Results
+
+### Convert to NumPy
+
+```python
+import numpy as np
+
+velocity_np = result.inputs['velocity'].cpu().numpy()
+position_np = result.inputs['position'].cpu().numpy()
+```
+
+### Plotting Trajectories
+
+```python
+import matplotlib.pyplot as plt
+
+# Get trajectory data
+time = np.arange(sim_steps) * model.config.dt
+velocity = result.inputs['velocity'][0, seq_length:, 0].cpu().numpy()
+position = result.inputs['position'][0, seq_length:, 0].cpu().numpy()
+
+fig, axes = plt.subplots(2, 1, figsize=(10, 6))
+
+axes[0].plot(time, velocity)
+axes[0].set_ylabel('Velocity')
+
+axes[1].plot(time, position)
+axes[1].set_ylabel('Position')
+axes[1].set_xlabel('Time (s)')
+
+plt.tight_layout()
+plt.show()
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Match sequence_length to training">
+    Use the same `sequence_length` for simulation as was used during training. This is stored in `model.config.sequence_length`.
+  </Accordion>
+
+  <Accordion title="Use batch dimension for parallelism">
+    Even for single trajectories, maintain the batch dimension. Use batching when simulating multiple scenarios.
+  </Accordion>
+
+  <Accordion title="Verify initial conditions">
+    Ensure your initial state values are physically reasonable. Start from known good states when debugging.
+  </Accordion>
+
+  <Accordion title="Check tensor shapes">
+    The most common errors come from incorrect tensor shapes. Remember: all tensors must be 3D with the last dimension being 1.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Feature Engineering" icon="gear" href="/concepts/feature-engineering">
+    Deep dive into Input/Output relationships
+  </Card>
+  <Card title="Model Architectures" icon="cubes" href="/concepts/model-architectures">
+    Compare MLP, RNN, and Transformer
+  </Card>
+</CardGroup>

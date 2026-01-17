@@ -1,0 +1,123 @@
+---
+title: RNNConfig
+description: Recurrent Neural Network configuration
+---
+
+```python
+from onyxengine.modeling import RNNConfig
+
+config = RNNConfig(
+    outputs: List[Output],
+    inputs: List[Input],
+    dt: float,
+    sequence_length: int = 1,
+    rnn_type: Literal['RNN', 'LSTM', 'GRU'] = 'LSTM',
+    hidden_layers: int = 2,
+    hidden_size: int = 32,
+    dropout: float = 0.0,
+    bias: bool = True
+)
+```
+
+Configuration class for Recurrent Neural Network models.
+
+## Parameters
+
+<ParamField path="outputs" type="List[Output]" required>
+  List of output feature definitions.
+</ParamField>
+
+<ParamField path="inputs" type="List[Input]" required>
+  List of input feature definitions.
+</ParamField>
+
+<ParamField path="dt" type="float" required>
+  Time step in seconds. Must match your dataset's sampling rate.
+</ParamField>
+
+<ParamField path="sequence_length" type="int" default="1">
+  Length of the input sequence. Range: 1-100.
+</ParamField>
+
+<ParamField path="rnn_type" type="Literal" default="LSTM">
+  Type of recurrent unit. Options: `'RNN'`, `'LSTM'`, `'GRU'`.
+</ParamField>
+
+<ParamField path="hidden_layers" type="int" default="2">
+  Number of stacked RNN layers. Range: 1-10.
+</ParamField>
+
+<ParamField path="hidden_size" type="int" default="32">
+  Number of hidden units per layer. Range: 1-1024.
+</ParamField>
+
+<ParamField path="dropout" type="float" default="0.0">
+  Dropout rate between RNN layers. Range: 0.0-1.0.
+</ParamField>
+
+<ParamField path="bias" type="bool" default="True">
+  Whether to include bias terms.
+</ParamField>
+
+## RNN Types
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `'RNN'` | Basic recurrent unit | Simple sequences, debugging |
+| `'LSTM'` | Long Short-Term Memory | Long-range dependencies (default) |
+| `'GRU'` | Gated Recurrent Unit | Similar to LSTM, fewer parameters |
+
+## Example
+
+```python
+from onyxengine.modeling import RNNConfig, Input, Output
+
+outputs = [Output(name='acceleration')]
+inputs = [
+    Input(name='velocity', parent='acceleration', relation='derivative'),
+    Input(name='position', parent='velocity', relation='derivative'),
+    Input(name='control_input'),
+]
+
+config = RNNConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.01,
+    sequence_length=12,
+    rnn_type='LSTM',
+    hidden_layers=2,
+    hidden_size=64,
+    dropout=0.1,
+    bias=True
+)
+```
+
+## Architecture
+
+```
+Input: (batch, sequence_length, num_inputs)
+  ↓ RNN/LSTM/GRU layers (with hidden state)
+  ↓ Take final hidden state
+  ↓ Linear(hidden_size, num_outputs)
+Output: (batch, num_outputs)
+```
+
+## RNNOptConfig
+
+For hyperparameter optimization:
+
+```python
+from onyxengine.modeling import RNNOptConfig
+
+rnn_opt = RNNOptConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.01,
+    rnn_type={"select": ['RNN', 'LSTM', 'GRU']},
+    sequence_length={"select": [4, 8, 12, 16]},
+    hidden_layers={"range": [2, 4, 1]},
+    hidden_size={"select": [32, 64, 128]},
+    dropout={"range": [0.0, 0.4, 0.1]},
+    bias=True
+)
+```

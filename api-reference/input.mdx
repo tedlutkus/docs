@@ -1,0 +1,129 @@
+---
+title: Input
+description: Model input feature definition
+---
+
+```python
+from onyxengine.modeling import Input
+
+feature = Input(
+    name: str,
+    dataset_feature: Optional[str] = None,
+    scale: Union[None, Literal['mean'], List[float]] = 'mean',
+    parent: Optional[str] = None,
+    relation: Optional[Literal['equal', 'delta', 'derivative']] = None
+)
+```
+
+Defines an input feature for the model, including state relationships for simulation.
+
+## Parameters
+
+<ParamField path="name" type="str" required>
+  Name of the input feature. Used for dictionary access in `simulate()`.
+</ParamField>
+
+<ParamField path="dataset_feature" type="str" default="None">
+  Column name in the dataset. If `None`, uses `name`.
+</ParamField>
+
+<ParamField path="scale" type="Union[None, 'mean', List[float]]" default="mean">
+  Scaling method:
+  - `'mean'`: Normalize to zero mean, unit std (default)
+  - `None`: No scaling
+  - `[min, max]`: Scale from range to [-1, 1]
+</ParamField>
+
+<ParamField path="parent" type="str" default="None">
+  Parent feature name for derived inputs. Required if `relation` is set.
+</ParamField>
+
+<ParamField path="relation" type="Literal" default="None">
+  Relationship to parent for state updates during simulation:
+  - `'derivative'`: `input[t+1] = input[t] + parent[t] * dt`
+  - `'delta'`: `input[t+1] = input[t] + parent[t]`
+  - `'equal'`: `input[t+1] = parent[t]`
+  - `None`: External input (no state update)
+</ParamField>
+
+## Input Types
+
+### External Input
+
+Inputs without a parent are "external inputs" - known values at each timestep:
+
+```python
+Input(name='control_input')
+Input(name='motor_torque')
+Input(name='disturbance')
+```
+
+### State Input
+
+Inputs with a parent are "states" - values that update during simulation:
+
+```python
+# Velocity integrates acceleration
+Input(name='velocity', parent='acceleration', relation='derivative')
+
+# Position integrates velocity
+Input(name='position', parent='velocity', relation='derivative')
+```
+
+## Examples
+
+### Basic State-Space Model
+
+```python
+from onyxengine.modeling import Input, Output
+
+outputs = [Output(name='acceleration')]
+inputs = [
+    # States (derived from outputs)
+    Input(name='velocity', parent='acceleration', relation='derivative'),
+    Input(name='position', parent='velocity', relation='derivative'),
+    # External input
+    Input(name='force'),
+]
+```
+
+### Custom Dataset Column Name
+
+```python
+# Feature named 'velocity' maps to 'encoder_vel' in dataset
+Input(
+    name='velocity',
+    dataset_feature='encoder_vel',
+    parent='acceleration',
+    relation='derivative'
+)
+```
+
+### Custom Scaling
+
+```python
+# Scale torque from [-10, 10] Nm to [-1, 1]
+Input(name='torque', scale=[-10, 10])
+
+# No scaling for normalized data
+Input(name='normalized_signal', scale=None)
+```
+
+### State Chain
+
+```python
+# Higher-order system: jerk → acceleration → velocity → position
+outputs = [Output(name='jerk')]
+inputs = [
+    Input(name='acceleration', parent='jerk', relation='derivative'),
+    Input(name='velocity', parent='acceleration', relation='derivative'),
+    Input(name='position', parent='velocity', relation='derivative'),
+    Input(name='control'),
+]
+```
+
+## Validation
+
+- If `relation` is set, `parent` must also be set
+- If `parent` is set, `relation` must also be set
+- Parent must reference an existing Output or Input name

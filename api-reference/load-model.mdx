@@ -1,0 +1,117 @@
+---
+title: load_model
+description: Download a model from the Onyx Engine
+---
+
+```python
+onyx.load_model(
+    name: str,
+    version_id: str = None,
+    mode: Literal["online", "offline"] = "online"
+) -> MLP | RNN | Transformer
+```
+
+Downloads a trained model from the Onyx Engine. Uses local cache when available.
+
+## Parameters
+
+<ParamField path="name" type="str" required>
+  The name of the model to load.
+</ParamField>
+
+<ParamField path="version_id" type="str" default="None">
+  The specific version ID to load. If `None`, loads the latest version.
+</ParamField>
+
+<ParamField path="mode" type="Literal['online', 'offline']" default="online">
+  Loading mode:
+  - `"online"`: Check Engine for latest version (default)
+  - `"offline"`: Load only from local cache without network access
+</ParamField>
+
+## Returns
+
+<ResponseField name="model" type="MLP | RNN | Transformer">
+  The loaded model, ready for inference or simulation. The model is set to evaluation mode (`model.eval()`).
+</ResponseField>
+
+## Raises
+
+- `Exception`: If the model is not found in the Engine (online mode)
+- `Exception`: If the model is not found in local storage (offline mode)
+
+## Example
+
+```python
+import onyxengine as onyx
+
+# Load the latest version
+model = onyx.load_model('example_model')
+
+# Check the configuration
+print(model.config)
+print(f"Architecture: {model.config.type}")
+print(f"Inputs: {[i.name for i in model.config.inputs]}")
+print(f"Outputs: {[o.name for o in model.config.outputs]}")
+```
+
+### Load Specific Version
+
+```python
+# Load a specific version
+model = onyx.load_model(
+    'example_model',
+    version_id='dcfec841-1748-47e2-b6c7-3c821cc69b4a'
+)
+```
+
+### Offline Mode
+
+```python
+# Load from local cache only (no network)
+model = onyx.load_model('example_model', mode='offline')
+```
+
+## Using the Loaded Model
+
+### Run Simulation
+
+```python
+import torch
+
+model = onyx.load_model('example_model')
+seq_length = model.config.sequence_length
+
+# Create inputs
+velocity = torch.zeros(1, seq_length, 1)
+position = torch.zeros(1, seq_length, 1)
+control = torch.ones(1, seq_length + 100, 1)
+
+# Simulate
+result = model.simulate(
+    x0={'velocity': velocity, 'position': position},
+    external_inputs={'control_input': control},
+    sim_steps=100
+)
+```
+
+### Direct Inference
+
+```python
+import torch
+
+model = onyx.load_model('example_model')
+
+# Single forward pass
+x = torch.randn(1, model.config.sequence_length, len(model.config.inputs))
+with torch.no_grad():
+    output = model(x)
+```
+
+## Caching Behavior
+
+Models are cached locally in `~/.onyx/models/`:
+
+- First load downloads the model
+- Subsequent loads use the cache if versions match
+- Specifying a `version_id` ensures you get that exact version

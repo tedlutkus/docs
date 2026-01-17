@@ -1,0 +1,104 @@
+---
+title: Platform Overview
+description: Introduction to the Onyx Engine web platform
+---
+
+The Onyx Engine Platform at [engine.onyx-robotics.com](https://engine.onyx-robotics.com) provides a web interface for managing datasets, training models, and analyzing results.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="System Overview" icon="diagram-project">
+    Visualize your complete data and model lineage with interactive node graphs
+  </Card>
+  <Card title="Dataset Management" icon="database">
+    Upload, process, and explore your hardware data
+  </Card>
+  <Card title="Training Jobs" icon="server">
+    Monitor training progress with real-time loss curves and predictions
+  </Card>
+  <Card title="Model Analysis" icon="chart-line">
+    Compare model versions and visualize performance metrics
+  </Card>
+</CardGroup>
+
+## When to Use the Platform vs SDK
+
+| Task | Platform | SDK |
+|------|----------|-----|
+| Upload data | Quick uploads, drag-and-drop | Programmatic uploads, large datasets |
+| Configure features | Visual feature selection | Code-defined feature relationships |
+| Start training | Simple configurations | Complex configs, automation |
+| Monitor progress | Real-time visualizations | Terminal output |
+| Compare models | Side-by-side charts | Programmatic analysis |
+| Download models | One-click download | `load_model()` |
+
+<Tip>
+Use the platform for exploration and visualization, and the SDK for automation and production workflows.
+</Tip>
+
+## Platform Layout
+
+### System Overview
+
+The main dashboard shows your complete data lineage:
+
+<Frame>
+  <img src="/images/node_graph.png" alt="System Overview node graph" />
+</Frame>
+
+- **Node Graph**: Interactive visualization of datasets and models
+- **Table View**: List of all objects with versions and metadata
+- **Lineage Tracking**: See which datasets trained which models
+
+### Navigation
+
+- **Select breadcrumb**: Navigate to specific objects
+- **Inspector panel**: Quick view of selected object details
+- **Tool palette**: Upload, create, and manage objects
+
+## Getting Started
+
+1. **Sign up** at [engine.onyx-robotics.com](https://engine.onyx-robotics.com)
+2. **Explore** the example datasets included with your account
+3. **Upload** your own data using the Upload button
+4. **Train** a model using the platform or SDK
+
+## Example Workflow
+
+<Steps>
+  <Step title="Upload Dataset">
+    Drag your CSV or Parquet file into the System Overview
+  </Step>
+  <Step title="Process Features">
+    Select which columns to include and set the time step
+  </Step>
+  <Step title="Configure Model">
+    Choose architecture and define input/output relationships
+  </Step>
+  <Step title="Train">
+    Start training and monitor progress in real-time
+  </Step>
+  <Step title="Analyze">
+    View loss curves, test predictions, and download your model
+  </Step>
+</Steps>
+
+## Account Settings
+
+Access settings via the profile icon in the top right:
+
+- **API Keys**: Generate keys for SDK authentication
+- **Team Management**: Invite collaborators (enterprise plans)
+- **Usage**: View training credits and storage
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Uploading Datasets" icon="upload" href="/platform/uploading-datasets">
+    Learn the data upload workflow
+  </Card>
+  <Card title="Training via UI" icon="play" href="/platform/training-via-ui">
+    Configure and run training jobs
+  </Card>
+</CardGroup>

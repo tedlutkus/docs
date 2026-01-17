@@ -1,0 +1,81 @@
+---
+title: load_dataset
+description: Download a dataset from the Onyx Engine
+---
+
+```python
+onyx.load_dataset(
+    name: str,
+    version_id: str = None
+) -> OnyxDataset
+```
+
+Downloads an `OnyxDataset` from the Onyx Engine. Uses local cache when available.
+
+## Parameters
+
+<ParamField path="name" type="str" required>
+  The name of the dataset to load.
+</ParamField>
+
+<ParamField path="version_id" type="str" default="None">
+  The specific version ID to load. If `None`, loads the latest version.
+</ParamField>
+
+## Returns
+
+<ResponseField name="OnyxDataset" type="OnyxDataset">
+  The loaded dataset with:
+  - `dataframe`: pandas DataFrame with the data
+  - `config`: OnyxDatasetConfig with features and dt
+</ResponseField>
+
+## Raises
+
+- `Exception`: If the dataset is not found in the Engine
+- `Exception`: If the dataset status is not "active"
+
+## Example
+
+```python
+import onyxengine as onyx
+
+# Load the latest version
+dataset = onyx.load_dataset('example_train_data')
+
+# Access the data
+print(dataset.dataframe.head())
+print(f"Features: {dataset.config.features}")
+print(f"Time step: {dataset.config.dt}")
+```
+
+### Load Specific Version
+
+```python
+# Load a specific version
+dataset = onyx.load_dataset(
+    'example_train_data',
+    version_id='52aea6f3-f61e-487b-981b-901e11b4a9c0'
+)
+```
+
+## Caching Behavior
+
+The SDK caches datasets locally in `~/.onyx/datasets/`:
+
+1. If the dataset exists locally and matches the requested version, it's loaded from cache
+2. If the local version is outdated, the new version is downloaded
+3. If requesting `None` (latest) and local version matches latest, cache is used
+
+```python
+# First call downloads
+dataset = onyx.load_dataset('my_data')  # Downloads
+
+# Second call uses cache
+dataset = onyx.load_dataset('my_data')  # Uses local cache
+```
+
+## Notes
+
+- Datasets must have status "active" to be loaded
+- The returned DataFrame preserves the original column order and data types

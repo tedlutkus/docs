@@ -1,0 +1,78 @@
+---
+title: save_model
+description: Upload a model to the Onyx Engine
+---
+
+```python
+onyx.save_model(
+    name: str,
+    model: Union[MLP, RNN, Transformer],
+    source_datasets: List[Dict[str, Optional[str]]] = []
+)
+```
+
+Uploads an Onyx model to the Engine. Typically used for locally-trained models; the Engine automatically saves models it trains.
+
+## Parameters
+
+<ParamField path="name" type="str" required>
+  The name for the model. Must be a non-empty string.
+</ParamField>
+
+<ParamField path="model" type="Union[MLP, RNN, Transformer]" required>
+  The Onyx model to save. Must be an MLP, RNN, or Transformer instance.
+</ParamField>
+
+<ParamField path="source_datasets" type="List[Dict[str, Optional[str]]]" default="[]">
+  Source datasets used to train this model, for lineage tracking. Each dictionary should have:
+  - `name` (str): Name of the source dataset
+  - `version_id` (str, optional): Specific version, or latest if not provided
+</ParamField>
+
+## Returns
+
+None. Prints a confirmation message when upload completes.
+
+## Raises
+
+- `Exception`: If the name is an empty string
+- `Exception`: If a source dataset is not found in the Engine
+
+## Example
+
+```python
+import onyxengine as onyx
+from onyxengine.modeling import MLP, MLPConfig, Input, Output
+
+# Create model configuration
+outputs = [Output(name='acceleration')]
+inputs = [
+    Input(name='velocity', parent='acceleration', relation='derivative'),
+    Input(name='position', parent='velocity', relation='derivative'),
+    Input(name='control_input'),
+]
+
+config = MLPConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.01,
+    sequence_length=8,
+    hidden_layers=3,
+    hidden_size=64
+)
+
+# Create and save model
+model = MLP(config)
+onyx.save_model(
+    name='my_model',
+    model=model,
+    source_datasets=[{'name': 'my_training_data'}]
+)
+```
+
+## Notes
+
+- The model is saved locally before uploading (in `~/.onyx/models/`)
+- Model weights are saved in PyTorch format (`.pt`)
+- The model configuration is saved alongside the weights
+- Each save creates a new version of the model

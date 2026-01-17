@@ -1,11 +1,26 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "almond",
+  "theme": "mint",
   "name": "Onyx Engine",
   "colors": {
     "primary": "#1F8AD7",
     "light": "#60BAFA",
-    "dark": "#2775AC"
+    "dark": "#232729"
+  },
+  "styling": {
+    "codeblocks": {
+      "theme": {
+        "light": "github-dark-dimmed",
+        "dark": "github-dark-dimmed"
+      }
+    }
+  },
+  "background": {
+    "decoration": "grid"
+  },
+  "fonts": {
+    "family": "Geist",
+    "weight": 400
   },
   "favicon": "/favicon.svg",
   "navigation": {
@@ -14,55 +29,88 @@
         "tab": "Guides",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
               "index",
               "quickstart",
-              "development"
+              "installation"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Tutorials",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "tutorials/working-with-datasets",
+              "tutorials/training-models",
+              "tutorials/optimizing-models",
+              "tutorials/simulating-models"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Concepts",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "concepts/model-architectures",
+              "concepts/feature-engineering",
+              "concepts/training-configuration"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Platform",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "platform/overview",
+              "platform/uploading-datasets",
+              "platform/training-via-ui",
+              "platform/viewing-results"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Overview",
             "pages": [
-              "api-reference/introduction"
+              "api-reference/index"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Core Functions",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api-reference/save-dataset",
+              "api-reference/load-dataset",
+              "api-reference/save-model",
+              "api-reference/load-model",
+              "api-reference/train-model",
+              "api-reference/optimize-model"
+            ]
+          },
+          {
+            "group": "Data Classes",
+            "pages": [
+              "api-reference/onyx-dataset"
+            ]
+          },
+          {
+            "group": "Model Configurations",
+            "pages": [
+              "api-reference/mlp-config",
+              "api-reference/rnn-config",
+              "api-reference/transformer-config"
+            ]
+          },
+          {
+            "group": "Feature Classes",
+            "pages": [
+              "api-reference/input",
+              "api-reference/output"
+            ]
+          },
+          {
+            "group": "Training Classes",
+            "pages": [
+              "api-reference/training-config",
+              "api-reference/optimization-config",
+              "api-reference/optimizer-configs"
             ]
           }
         ]
@@ -71,14 +119,14 @@
     "global": {
       "anchors": [
         {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
+          "anchor": "Platform",
+          "href": "https://engine.onyx-robotics.com",
+          "icon": "browser"
         },
         {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
+          "anchor": "GitHub",
+          "href": "https://github.com/onyx-robotics/onyx-engine",
+          "icon": "github"
         }
       ]
     }
@@ -91,32 +139,18 @@
     "links": [
       {
         "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "href": "mailto:support@onyx-robotics.com"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
+      "label": "Platform",
+      "href": "https://engine.onyx-robotics.com"
     }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/onyx-robotics"
     }
   }
 }

@@ -1,0 +1,125 @@
+---
+title: TransformerConfig
+description: Transformer model configuration
+---
+
+```python
+from onyxengine.modeling import TransformerConfig
+
+config = TransformerConfig(
+    outputs: List[Output],
+    inputs: List[Input],
+    dt: float,
+    sequence_length: int = 1,
+    n_layer: int = 1,
+    n_head: int = 4,
+    n_embd: int = 32,
+    dropout: float = 0.0,
+    bias: bool = True
+)
+```
+
+Configuration class for Transformer models (GPT-style decoder-only architecture).
+
+## Parameters
+
+<ParamField path="outputs" type="List[Output]" required>
+  List of output feature definitions.
+</ParamField>
+
+<ParamField path="inputs" type="List[Input]" required>
+  List of input feature definitions.
+</ParamField>
+
+<ParamField path="dt" type="float" required>
+  Time step in seconds. Must match your dataset's sampling rate.
+</ParamField>
+
+<ParamField path="sequence_length" type="int" default="1">
+  Length of the input sequence. Range: 1-100.
+</ParamField>
+
+<ParamField path="n_layer" type="int" default="1">
+  Number of transformer blocks. Range: 1-10.
+</ParamField>
+
+<ParamField path="n_head" type="int" default="4">
+  Number of attention heads. Range: 1-12.
+</ParamField>
+
+<ParamField path="n_embd" type="int" default="32">
+  Embedding dimension. Must be divisible by `n_head`. Range: 1-1024.
+</ParamField>
+
+<ParamField path="dropout" type="float" default="0.0">
+  Dropout rate. Range: 0.0-1.0.
+</ParamField>
+
+<ParamField path="bias" type="bool" default="True">
+  Whether to include bias terms.
+</ParamField>
+
+## Example
+
+```python
+from onyxengine.modeling import TransformerConfig, Input, Output
+
+outputs = [Output(name='acceleration')]
+inputs = [
+    Input(name='velocity', parent='acceleration', relation='derivative'),
+    Input(name='position', parent='velocity', relation='derivative'),
+    Input(name='control_input'),
+]
+
+config = TransformerConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.01,
+    sequence_length=16,
+    n_layer=2,
+    n_head=4,
+    n_embd=64,  # Must be divisible by n_head (64/4=16)
+    dropout=0.1,
+    bias=True
+)
+```
+
+## Architecture
+
+```
+Input: (batch, sequence_length, num_inputs)
+  ↓ Linear embedding to n_embd dimensions
+  ↓ Add positional encoding
+  ↓ Transformer block (multi-head attention + feed-forward)
+  ↓ ... (n_layer times)
+  ↓ Linear(n_embd, num_outputs)
+Output: (batch, num_outputs)
+```
+
+## Constraints
+
+<Warning>
+`n_embd` must be divisible by `n_head`. For example:
+- `n_embd=64, n_head=4` (valid: 64/4=16)
+- `n_embd=64, n_head=3` (invalid: 64/3=21.33)
+</Warning>
+
+## TransformerOptConfig
+
+For hyperparameter optimization:
+
+```python
+from onyxengine.modeling import TransformerOptConfig
+
+transformer_opt = TransformerOptConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.01,
+    sequence_length={"select": [4, 8, 12, 16]},
+    n_layer={"range": [2, 4, 1]},
+    n_head={"select": [2, 4, 8]},
+    n_embd={"select": [32, 64, 128]},
+    dropout={"range": [0.0, 0.4, 0.1]},
+    bias=True
+)
+```

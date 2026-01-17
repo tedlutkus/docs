@@ -1,0 +1,327 @@
+---
+title: Optimizing Models
+description: Automatically search for the best model architecture and hyperparameters
+---
+
+Model optimization in Onyx Engine lets you automatically search across model architectures, hyperparameters, and training configurations to find the best model for your system.
+
+## Complete Optimization Example
+
+```python
+from onyxengine.modeling import (
+    Output,
+    Input,
+    OptimizationConfig,
+    MLPOptConfig,
+    RNNOptConfig,
+    TransformerOptConfig,
+    AdamWOptConfig,
+    SGDOptConfig,
+    CosineDecayWithWarmupOptConfig,
+)
+import onyxengine as onyx
+
+# Define model inputs/outputs
+outputs = [
+    Output(name='acceleration_predicted'),
+]
+inputs = [
+    Input(name='velocity', parent='acceleration_predicted', relation='derivative'),
+    Input(name='position', parent='velocity', relation='derivative'),
+    Input(name='control_input'),
+]
+
+# Model architecture search spaces
+mlp_opt = MLPOptConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.0025,
+    sequence_length={"select": [1, 2, 4, 8, 10]},
+    hidden_layers={"range": [2, 4, 1]},
+    hidden_size={"select": [32, 64, 128]},
+    activation={"select": ['relu', 'tanh']},
+    dropout={"range": [0.0, 0.3, 0.1]},
+    bias=True
+)
+
+rnn_opt = RNNOptConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.0025,
+    rnn_type={"select": ['LSTM', 'GRU']},
+    sequence_length={"select": [4, 8, 12]},
+    hidden_layers={"range": [2, 4, 1]},
+    hidden_size={"select": [32, 64, 128]},
+    dropout={"range": [0.0, 0.3, 0.1]},
+    bias=True
+)
+
+# Optimizer search spaces
+adamw_opt = AdamWOptConfig(
+    lr={"select": [1e-4, 3e-4, 1e-3]},
+    weight_decay={"select": [1e-3, 1e-2]}
+)
+
+# Learning rate scheduler search spaces
+lr_scheduler_opt = CosineDecayWithWarmupOptConfig(
+    max_lr={"select": [3e-4, 1e-3]},
+    min_lr={"select": [1e-5, 3e-5]},
+    warmup_iters={"select": [100, 200]},
+    decay_iters={"select": [1000, 2000]}
+)
+
+# Optimization configuration
+opt_config = OptimizationConfig(
+    training_iters=2000,
+    train_batch_size=1024,
+    test_dataset_size=500,
+    checkpoint_type='single_step',
+    opt_models=[mlp_opt, rnn_opt],
+    opt_optimizers=[adamw_opt],
+    opt_lr_schedulers=[None, lr_scheduler_opt],
+    num_trials=10
+)
+
+# Run optimization
+onyx.optimize_model(
+    model_name='optimized_model',
+    dataset_name='example_train_data',
+    optimization_config=opt_config,
+)
+```
+
+## Defining Search Spaces
+
+### Fixed Values
+
+Lock a parameter to a single value:
+
+```python
+mlp_opt = MLPOptConfig(
+    hidden_layers=3,      # Always use 3 layers
+    activation='relu',    # Always use ReLU
+    bias=True,           # Always include bias
+    ...
+)
+```
+
+### Select (Discrete Options)
+
+Choose from a list of values:
+
+```python
+mlp_opt = MLPOptConfig(
+    hidden_layers={"select": [2, 3, 4]},
+    hidden_size={"select": [32, 64, 128, 256]},
+    activation={"select": ['relu', 'gelu', 'tanh']},
+    ...
+)
+```
+
+### Range (Numeric Intervals)
+
+Specify a range with `[start, end, step]`:
+
+```python
+mlp_opt = MLPOptConfig(
+    hidden_layers={"range": [2, 5, 1]},     # 2, 3, 4, or 5
+    dropout={"range": [0.0, 0.4, 0.1]},     # 0.0, 0.1, 0.2, 0.3, or 0.4
+    ...
+)
+```
+
+<Note>
+Range is only supported for numeric parameters. Use `select` for strings and booleans.
+</Note>
+
+## Model Optimization Configs
+
+### MLPOptConfig
+
+```python
+mlp_opt = MLPOptConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.0025,
+    sequence_length={"select": [1, 2, 4, 8]},
+    hidden_layers={"range": [2, 5, 1]},
+    hidden_size={"select": [32, 64, 128]},
+    activation={"select": ['relu', 'gelu', 'tanh']},
+    dropout={"range": [0.0, 0.4, 0.1]},
+    bias=True
+)
+```
+
+### RNNOptConfig
+
+```python
+rnn_opt = RNNOptConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.0025,
+    rnn_type={"select": ['RNN', 'LSTM', 'GRU']},
+    sequence_length={"select": [4, 8, 12, 16]},
+    hidden_layers={"range": [2, 4, 1]},
+    hidden_size={"select": [32, 64, 128]},
+    dropout={"range": [0.0, 0.4, 0.1]},
+    bias=True
+)
+```
+
+### TransformerOptConfig
+
+```python
+transformer_opt = TransformerOptConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.0025,
+    sequence_length={"select": [4, 8, 12]},
+    n_layer={"range": [2, 4, 1]},
+    n_head={"select": [2, 4, 8]},
+    n_embd={"select": [32, 64, 128]},
+    dropout={"range": [0.0, 0.4, 0.1]},
+    bias=True
+)
+```
+
+## Optimizer Configs
+
+### AdamWOptConfig
+
+```python
+adamw_opt = AdamWOptConfig(
+    lr={"select": [1e-5, 1e-4, 3e-4, 1e-3]},
+    weight_decay={"select": [1e-4, 1e-3, 1e-2]}
+)
+```
+
+### SGDOptConfig
+
+```python
+sgd_opt = SGDOptConfig(
+    lr={"select": [1e-4, 1e-3, 1e-2]},
+    weight_decay={"select": [1e-4, 1e-3]},
+    momentum={"select": [0.9, 0.95, 0.99]}
+)
+```
+
+## Learning Rate Scheduler Configs
+
+### CosineDecayWithWarmupOptConfig
+
+```python
+cos_decay_opt = CosineDecayWithWarmupOptConfig(
+    max_lr={"select": [3e-4, 1e-3, 3e-3]},
+    min_lr={"select": [1e-5, 3e-5, 1e-4]},
+    warmup_iters={"select": [100, 200, 400]},
+    decay_iters={"select": [1000, 2000, 4000]}
+)
+```
+
+### CosineAnnealingWarmRestartsOptConfig
+
+```python
+cos_anneal_opt = CosineAnnealingWarmRestartsOptConfig(
+    T_0={"select": [500, 1000, 2000]},
+    T_mult={"select": [1, 2]},
+    eta_min={"select": [1e-6, 1e-5, 1e-4]}
+)
+```
+
+### No Scheduler
+
+Include `None` in your scheduler list to try training without a scheduler:
+
+```python
+opt_config = OptimizationConfig(
+    opt_lr_schedulers=[None, cos_decay_opt],  # Try both with and without scheduler
+    ...
+)
+```
+
+## OptimizationConfig
+
+```python
+opt_config = OptimizationConfig(
+    # Training parameters (fixed for all trials)
+    training_iters=2000,
+    train_batch_size=1024,
+    train_val_split_ratio=0.9,
+    test_dataset_size=500,
+    checkpoint_type='single_step',
+
+    # Search spaces
+    opt_models=[mlp_opt, rnn_opt, transformer_opt],
+    opt_optimizers=[adamw_opt, sgd_opt],
+    opt_lr_schedulers=[None, cos_decay_opt],
+
+    # Number of trials
+    num_trials=20
+)
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `opt_models` | List of model configs to search |
+| `opt_optimizers` | List of optimizer configs to search |
+| `opt_lr_schedulers` | List of scheduler configs (include `None` for no scheduler) |
+| `num_trials` | Total number of configurations to try |
+
+## Running Optimization
+
+```python
+onyx.optimize_model(
+    model_name='optimized_model',
+    dataset_name='example_train_data',
+    dataset_version_id=None,  # Optional: specific dataset version
+    optimization_config=opt_config,
+)
+```
+
+Each trial creates a new version of the model. Monitor progress in the [Engine Platform](https://engine.onyx-robotics.com).
+
+## Loading Optimized Models
+
+After optimization completes, load the best model or any specific trial:
+
+```python
+# Load the latest (best) version
+best_model = onyx.load_model('optimized_model')
+
+# Load a specific trial
+trial_model = onyx.load_model('optimized_model', version_id='dcfec841-1748-47e2-b6c7-3c821cc69b4a')
+
+# Check what configuration was used
+print(trial_model.config)
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Start with defaults">
+    The default search spaces in OptConfig classes are good starting points. Narrow them down based on initial results.
+  </Accordion>
+
+  <Accordion title="Balance breadth and depth">
+    More trials with fewer options per parameter often works better than fewer trials with huge search spaces.
+  </Accordion>
+
+  <Accordion title="Use single_step first">
+    Start with `checkpoint_type='single_step'` to quickly filter bad configurations, then run a focused `multi_step` optimization on promising architectures.
+  </Accordion>
+
+  <Accordion title="Monitor in the platform">
+    Use the Engine Platform to compare trial results, view loss curves, and identify which hyperparameters matter most.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Simulating Models" icon="play" href="/tutorials/simulating-models">
+    Deploy your optimized model for simulation
+  </Card>
+  <Card title="Viewing Results" icon="chart-line" href="/platform/viewing-results">
+    Analyze optimization results in the platform
+  </Card>
+</CardGroup>

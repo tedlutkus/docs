@@ -1,0 +1,316 @@
+---
+title: Training Configuration
+description: Configure optimizers, schedulers, and training parameters
+---
+
+Training configuration in Onyx Engine controls how your model learns from data. This page covers training parameters, optimizers, and learning rate schedulers.
+
+## TrainingConfig
+
+The `TrainingConfig` class defines all training parameters:
+
+```python
+from onyxengine.modeling import TrainingConfig, AdamWConfig
+
+training_config = TrainingConfig(
+    training_iters=3000,
+    train_batch_size=32,
+    train_val_split_ratio=0.9,
+    test_dataset_size=500,
+    checkpoint_type='single_step',
+    optimizer=AdamWConfig(),
+    lr_scheduler=None
+)
+```
+
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `training_iters` | int | 3000 | Total training iterations (max: 100,000) |
+| `train_batch_size` | int | 32 | Samples per training batch |
+| `train_val_split_ratio` | float | 0.9 | Fraction of data for training vs validation |
+| `test_dataset_size` | int | 500 | Samples reserved for test visualization |
+| `checkpoint_type` | str | 'single_step' | Optimization target |
+| `optimizer` | Config | AdamWConfig() | Optimizer configuration |
+| `lr_scheduler` | Config | None | Learning rate scheduler configuration |
+
+## Checkpoint Types
+
+The `checkpoint_type` parameter determines what metric the Engine optimizes:
+
+### single_step
+
+Optimizes for one-step-ahead prediction accuracy.
+
+```python
+training_config = TrainingConfig(
+    checkpoint_type='single_step',
+    ...
+)
+```
+
+**Use when:**
+- Debugging model configuration
+- Verifying the model can learn the dynamics
+- You need fast iteration on hyperparameters
+
+### multi_step
+
+Optimizes for multi-step trajectory simulation accuracy.
+
+```python
+training_config = TrainingConfig(
+    checkpoint_type='multi_step',
+    ...
+)
+```
+
+**Use when:**
+- Training final deployment models
+- Simulation accuracy matters more than single-step
+- Your application involves trajectory rollouts
+
+<Tip>
+Start with `single_step` to verify your model works, then switch to `multi_step` for the final model.
+</Tip>
+
+## Optimizers
+
+### AdamW (Recommended)
+
+Adam with decoupled weight decay. Works well for most cases.
+
+```python
+from onyxengine.modeling import AdamWConfig
+
+optimizer = AdamWConfig(
+    lr=3e-4,           # Learning rate (default: 3e-4)
+    weight_decay=1e-2  # L2 regularization (default: 1e-2)
+)
+```
+
+**Typical ranges:**
+- `lr`: 1e-5 to 1e-2 (start with 3e-4)
+- `weight_decay`: 1e-4 to 1e-1 (start with 1e-2)
+
+### SGD
+
+Stochastic Gradient Descent with momentum.
+
+```python
+from onyxengine.modeling import SGDConfig
+
+optimizer = SGDConfig(
+    lr=1e-3,           # Learning rate
+    weight_decay=1e-4, # L2 regularization
+    momentum=0.9       # Momentum factor
+)
+```
+
+**When to use:**
+- Fine-tuning a pre-trained model
+- When AdamW shows instability
+- For specific convergence properties
+
+## Learning Rate Schedulers
+
+Schedulers adjust the learning rate during training to improve convergence.
+
+### No Scheduler
+
+Use a constant learning rate:
+
+```python
+training_config = TrainingConfig(
+    optimizer=AdamWConfig(lr=3e-4),
+    lr_scheduler=None  # Constant learning rate
+)
+```
+
+### Cosine Decay with Warmup
+
+Starts low, warms up to peak, then decays following a cosine curve.
+
+```python
+from onyxengine.modeling import CosineDecayWithWarmupConfig
+
+lr_scheduler = CosineDecayWithWarmupConfig(
+    max_lr=3e-4,       # Peak learning rate
+    min_lr=3e-5,       # Final learning rate
+    warmup_iters=200,  # Iterations for warmup
+    decay_iters=1000   # Iterations for decay
+)
+```
+
+**Learning rate curve:**
+```
+LR
+│   ╭───────╮
+│  ╱         ╲
+│ ╱           ╲____
+│╱
+└────────────────── Iterations
+  ↑        ↑
+  warmup   decay
+```
+
+**When to use:**
+- Standard choice for most training runs
+- When you want smooth convergence to a minimum
+
+### Cosine Annealing with Warm Restarts
+
+Periodic cosine decay with restarts that can lengthen over time.
+
+```python
+from onyxengine.modeling import CosineAnnealingWarmRestartsConfig
+
+lr_scheduler = CosineAnnealingWarmRestartsConfig(
+    T_0=500,          # Initial cycle length
+    T_mult=2,         # Cycle length multiplier (1 = same length)
+    eta_min=1e-5      # Minimum learning rate
+)
+```
+
+**Learning rate curve (T_mult=2):**
+```
+LR
+│╲  ╲    ╲
+│ ╲  ╲    ╲
+│  ╲  ╲    ╲____
+│   ╲  ╲
+└────────────────── Iterations
+ ↑   ↑     ↑
+ T_0 2*T_0 4*T_0
+```
+
+**When to use:**
+- Finding multiple local minima
+- When stuck in suboptimal solutions
+- Longer training runs
+
+## Data Splits
+
+Training data is automatically split into three sets:
+
+| Split | Purpose | Size |
+|-------|---------|------|
+| **Train** | Model weight updates | ~90% (configurable) |
+| **Validation** | Overfitting detection | ~10% (configurable) |
+| **Test** | Visualization only | Fixed count (`test_dataset_size`) |
+
+```python
+training_config = TrainingConfig(
+    train_val_split_ratio=0.9,  # 90% train, 10% validation
+    test_dataset_size=500,       # 500 samples for test plots
+    ...
+)
+```
+
+## Batch Size Considerations
+
+Batch size affects training dynamics:
+
+| Larger Batch | Smaller Batch |
+|--------------|---------------|
+| More stable gradients | Noisier gradients (can help escape local minima) |
+| Faster per-iteration | Slower per-iteration |
+| May need larger learning rate | Works with smaller learning rate |
+| Better GPU utilization | Less memory usage |
+
+**Recommendations:**
+- Start with 32-256
+- Increase if training is unstable
+- Decrease if you run out of memory
+- Scale learning rate with batch size (linear scaling rule)
+
+## Complete Example
+
+```python
+from onyxengine.modeling import (
+    TrainingConfig,
+    AdamWConfig,
+    CosineDecayWithWarmupConfig
+)
+
+# Conservative config for initial experiments
+conservative = TrainingConfig(
+    training_iters=2000,
+    train_batch_size=32,
+    checkpoint_type='single_step',
+    optimizer=AdamWConfig(lr=1e-4, weight_decay=1e-2),
+    lr_scheduler=None
+)
+
+# Standard config for production training
+standard = TrainingConfig(
+    training_iters=5000,
+    train_batch_size=256,
+    checkpoint_type='multi_step',
+    optimizer=AdamWConfig(lr=3e-4, weight_decay=1e-2),
+    lr_scheduler=CosineDecayWithWarmupConfig(
+        max_lr=3e-4,
+        min_lr=3e-5,
+        warmup_iters=200,
+        decay_iters=3000
+    )
+)
+
+# Aggressive config for larger datasets
+aggressive = TrainingConfig(
+    training_iters=10000,
+    train_batch_size=1024,
+    checkpoint_type='multi_step',
+    optimizer=AdamWConfig(lr=1e-3, weight_decay=1e-2),
+    lr_scheduler=CosineDecayWithWarmupConfig(
+        max_lr=1e-3,
+        min_lr=1e-5,
+        warmup_iters=500,
+        decay_iters=8000
+    )
+)
+```
+
+## Debugging Training Issues
+
+<AccordionGroup>
+  <Accordion title="Loss not decreasing">
+    - Reduce learning rate (try 10x smaller)
+    - Check that `dt` matches your dataset
+    - Verify input/output feature names match dataset columns
+    - Try a simpler model (fewer layers, smaller hidden size)
+  </Accordion>
+
+  <Accordion title="Training loss good, validation loss bad (overfitting)">
+    - Increase dropout
+    - Increase weight decay
+    - Reduce model size
+    - Add more training data
+    - Use early stopping via `checkpoint_type='single_step'`
+  </Accordion>
+
+  <Accordion title="Unstable training (loss spikes)">
+    - Reduce learning rate
+    - Increase batch size
+    - Add warmup via learning rate scheduler
+    - Check for outliers in your data
+  </Accordion>
+
+  <Accordion title="Training too slow">
+    - Increase batch size
+    - Reduce `training_iters` if already converged
+    - Use a simpler model architecture
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Training Tutorial" icon="graduation-cap" href="/tutorials/training-models">
+    Complete guide to training models
+  </Card>
+  <Card title="Model Optimization" icon="sliders" href="/tutorials/optimizing-models">
+    Automatically search for best hyperparameters
+  </Card>
+</CardGroup>

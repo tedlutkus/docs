@@ -1,0 +1,168 @@
+---
+title: Training via UI
+description: Configure and run model training through the web platform
+---
+
+The Onyx Engine platform provides a visual interface for configuring and running training jobs.
+
+## Starting a Training Job
+
+From a processed dataset, you can start training by:
+
+1. Navigate to your dataset in the System Overview
+2. Click "Train Model" from the dataset actions
+3. Configure the model and training parameters
+4. Start training
+
+## Feature Configuration
+
+First, define which dataset columns are outputs vs inputs:
+
+<Frame>
+  <img src="/images/model_features.png" alt="Feature configuration interface" />
+</Frame>
+
+### Setting Up Features
+
+<Steps>
+  <Step title="Select Outputs">
+    Choose which columns the model should predict (typically derivatives like acceleration)
+  </Step>
+  <Step title="Select Inputs">
+    Choose columns to feed as model inputs (states and external inputs)
+  </Step>
+  <Step title="Define Relations">
+    For state inputs, specify parent features and relation types (derivative, delta, equal)
+  </Step>
+  <Step title="Set Scaling">
+    Choose normalization method for each feature
+  </Step>
+</Steps>
+
+### Example Configuration
+
+For a system with acceleration, velocity, position, and control input:
+
+| Feature | Type | Parent | Relation |
+|---------|------|--------|----------|
+| `acceleration` | Output | - | - |
+| `velocity` | Input | `acceleration` | derivative |
+| `position` | Input | `velocity` | derivative |
+| `control_input` | Input | - | - |
+
+## Model Configuration
+
+Choose your model architecture and hyperparameters:
+
+<Frame>
+  <img src="/images/model_config.png" alt="Model configuration interface" />
+</Frame>
+
+### Architecture Selection
+
+Select from:
+- **MLP**: Multi-Layer Perceptron (fastest, good baseline)
+- **RNN**: Recurrent Neural Network (LSTM/GRU for temporal patterns)
+- **Transformer**: Attention-based (complex dependencies)
+
+### Common Parameters
+
+| Parameter | Description | Typical Range |
+|-----------|-------------|---------------|
+| Sequence Length | Input history window | 1-16 |
+| Hidden Layers | Network depth | 2-4 |
+| Hidden Size | Neurons per layer | 32-128 |
+| Dropout | Regularization | 0.1-0.3 |
+
+### Training Parameters
+
+| Parameter | Description | Typical Value |
+|-----------|-------------|---------------|
+| Training Iterations | Total training steps | 2000-5000 |
+| Batch Size | Samples per batch | 256-1024 |
+| Learning Rate | Step size | 3e-4 |
+| Checkpoint Type | Optimization target | single_step or multi_step |
+
+## Running Training
+
+Once configured:
+
+1. Click "Start Training"
+2. The job queues and starts when resources are available
+3. Monitor progress in the Jobs tab
+
+## Monitoring Training
+
+View real-time training progress:
+
+<Frame>
+  <img src="/images/jobs.png" alt="Training jobs view" />
+</Frame>
+
+### Metrics Displayed
+
+- **Training Loss**: Error on training data (should decrease)
+- **Validation Loss**: Error on held-out data (watch for overfitting)
+- **Learning Rate**: Current LR if using a scheduler
+- **Progress**: Iterations completed / total
+
+### Understanding Loss Curves
+
+<Accordion title="Good training">
+- Training loss steadily decreases
+- Validation loss follows training loss
+- Both converge to low values
+</Accordion>
+
+<Accordion title="Overfitting">
+- Training loss decreases
+- Validation loss increases or plateaus
+- **Fix**: Increase dropout, reduce model size, add more data
+</Accordion>
+
+<Accordion title="Underfitting">
+- Both losses remain high
+- Model not learning the dynamics
+- **Fix**: Increase model size, check feature configuration, verify data quality
+</Accordion>
+
+## Training Tips
+
+<AccordionGroup>
+  <Accordion title="Start simple">
+    Begin with an MLP and single_step checkpoint. Add complexity only if needed.
+  </Accordion>
+
+  <Accordion title="Verify data first">
+    Check dataset statistics before training. Outliers or incorrect time steps cause poor results.
+  </Accordion>
+
+  <Accordion title="Use reasonable batch sizes">
+    Start with 256-512. Larger batches train faster but may need learning rate adjustment.
+  </Accordion>
+
+  <Accordion title="Monitor validation loss">
+    If validation loss increases while training loss decreases, you're overfitting.
+  </Accordion>
+</AccordionGroup>
+
+## Canceling Training
+
+To stop a running job:
+
+1. Go to the Jobs tab
+2. Find your training job
+3. Click "Cancel"
+
+Partial results may be saved depending on when you cancel.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Viewing Results" icon="chart-line" href="/platform/viewing-results">
+    Analyze training results and download models
+  </Card>
+  <Card title="SDK Training" icon="code" href="/tutorials/training-models">
+    Train models programmatically
+  </Card>
+</CardGroup>

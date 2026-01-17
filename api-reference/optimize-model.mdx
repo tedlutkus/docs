@@ -1,0 +1,143 @@
+---
+title: optimize_model
+description: Run hyperparameter optimization on the Onyx Engine
+---
+
+```python
+onyx.optimize_model(
+    model_name: str = "",
+    dataset_name: str = "",
+    dataset_version_id: Optional[str] = None,
+    optimization_config: OptimizationConfig = None
+)
+```
+
+Runs hyperparameter optimization on the Onyx Engine, searching across model architectures and training configurations.
+
+## Parameters
+
+<ParamField path="model_name" type="str" required>
+  The name for the optimized model. Each trial creates a new version.
+</ParamField>
+
+<ParamField path="dataset_name" type="str" required>
+  The name of the dataset to optimize on.
+</ParamField>
+
+<ParamField path="dataset_version_id" type="str" default="None">
+  The specific dataset version to use. If `None`, uses the latest version.
+</ParamField>
+
+<ParamField path="optimization_config" type="OptimizationConfig" required>
+  Configuration defining the search space and optimization parameters.
+</ParamField>
+
+## Returns
+
+None. Optimization runs on the Engine and model versions are saved for each trial.
+
+## Raises
+
+- `Exception`: If model_name or dataset_name is empty
+- `AssertionError`: If optimization_config is not provided
+
+## Example
+
+```python
+from onyxengine.modeling import (
+    Output, Input,
+    OptimizationConfig,
+    MLPOptConfig, RNNOptConfig,
+    AdamWOptConfig,
+    CosineDecayWithWarmupOptConfig
+)
+import onyxengine as onyx
+
+# Define features
+outputs = [Output(name='acceleration_predicted')]
+inputs = [
+    Input(name='velocity', parent='acceleration_predicted', relation='derivative'),
+    Input(name='position', parent='velocity', relation='derivative'),
+    Input(name='control_input'),
+]
+
+# Model search spaces
+mlp_opt = MLPOptConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.0025,
+    sequence_length={"select": [4, 8, 12]},
+    hidden_layers={"range": [2, 4, 1]},
+    hidden_size={"select": [32, 64, 128]},
+    activation={"select": ['relu', 'tanh']},
+    dropout={"range": [0.0, 0.3, 0.1]}
+)
+
+rnn_opt = RNNOptConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.0025,
+    rnn_type={"select": ['LSTM', 'GRU']},
+    sequence_length={"select": [8, 12, 16]},
+    hidden_layers={"range": [2, 4, 1]},
+    hidden_size={"select": [32, 64, 128]},
+    dropout={"range": [0.0, 0.3, 0.1]}
+)
+
+# Optimizer search space
+adamw_opt = AdamWOptConfig(
+    lr={"select": [1e-4, 3e-4, 1e-3]},
+    weight_decay={"select": [1e-3, 1e-2]}
+)
+
+# Scheduler search space
+lr_opt = CosineDecayWithWarmupOptConfig(
+    max_lr={"select": [3e-4, 1e-3]},
+    min_lr={"select": [1e-5, 3e-5]},
+    warmup_iters={"select": [100, 200]},
+    decay_iters={"select": [1000, 2000]}
+)
+
+# Full optimization config
+opt_config = OptimizationConfig(
+    training_iters=2000,
+    train_batch_size=1024,
+    checkpoint_type='single_step',
+    opt_models=[mlp_opt, rnn_opt],
+    opt_optimizers=[adamw_opt],
+    opt_lr_schedulers=[None, lr_opt],
+    num_trials=10
+)
+
+# Run optimization
+onyx.optimize_model(
+    model_name='optimized_model',
+    dataset_name='example_train_data',
+    optimization_config=opt_config
+)
+```
+
+## Loading Results
+
+Each trial creates a model version. Load specific trials by version ID:
+
+```python
+# Load the latest (best) model
+best_model = onyx.load_model('optimized_model')
+
+# Load a specific trial
+trial_model = onyx.load_model(
+    'optimized_model',
+    version_id='abc123...'
+)
+
+# Check what configuration was used
+print(trial_model.config)
+```
+
+## Notes
+
+- Each trial trains independently with different hyperparameters
+- Monitor progress in the [Engine Platform](https://engine.onyx-robotics.com)
+- The Engine uses Bayesian optimization to select promising configurations
+- Trial results include full metrics for comparison

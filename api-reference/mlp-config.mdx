@@ -1,0 +1,119 @@
+---
+title: MLPConfig
+description: Multi-Layer Perceptron configuration
+---
+
+```python
+from onyxengine.modeling import MLPConfig
+
+config = MLPConfig(
+    outputs: List[Output],
+    inputs: List[Input],
+    dt: float,
+    sequence_length: int = 1,
+    hidden_layers: int = 2,
+    hidden_size: int = 32,
+    activation: Literal['relu', 'gelu', 'tanh', 'sigmoid'] = 'relu',
+    dropout: float = 0.0,
+    bias: bool = True
+)
+```
+
+Configuration class for Multi-Layer Perceptron models.
+
+## Parameters
+
+<ParamField path="outputs" type="List[Output]" required>
+  List of output feature definitions.
+</ParamField>
+
+<ParamField path="inputs" type="List[Input]" required>
+  List of input feature definitions.
+</ParamField>
+
+<ParamField path="dt" type="float" required>
+  Time step in seconds. Must match your dataset's sampling rate.
+</ParamField>
+
+<ParamField path="sequence_length" type="int" default="1">
+  Length of the input sequence (history window). Range: 1-100.
+</ParamField>
+
+<ParamField path="hidden_layers" type="int" default="2">
+  Number of hidden layers. Range: 1-10.
+</ParamField>
+
+<ParamField path="hidden_size" type="int" default="32">
+  Number of neurons per hidden layer. Range: 1-1024.
+</ParamField>
+
+<ParamField path="activation" type="Literal" default="relu">
+  Activation function. Options: `'relu'`, `'gelu'`, `'tanh'`, `'sigmoid'`.
+</ParamField>
+
+<ParamField path="dropout" type="float" default="0.0">
+  Dropout rate for regularization. Range: 0.0-1.0.
+</ParamField>
+
+<ParamField path="bias" type="bool" default="True">
+  Whether to include bias terms in linear layers.
+</ParamField>
+
+## Example
+
+```python
+from onyxengine.modeling import MLPConfig, Input, Output
+
+outputs = [Output(name='acceleration')]
+inputs = [
+    Input(name='velocity', parent='acceleration', relation='derivative'),
+    Input(name='position', parent='velocity', relation='derivative'),
+    Input(name='control_input'),
+]
+
+config = MLPConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.01,
+    sequence_length=8,
+    hidden_layers=3,
+    hidden_size=64,
+    activation='relu',
+    dropout=0.2,
+    bias=True
+)
+```
+
+## Architecture
+
+The MLP flattens the input sequence and passes it through fully-connected layers:
+
+```
+Input: (batch, sequence_length, num_inputs)
+  ↓ Flatten to (batch, sequence_length * num_inputs)
+  ↓ Linear(in, hidden_size) → LayerNorm → Activation → Dropout
+  ↓ Linear(hidden_size, hidden_size) → LayerNorm → Activation → Dropout
+  ↓ ... (hidden_layers times)
+  ↓ Linear(hidden_size, num_outputs)
+Output: (batch, num_outputs)
+```
+
+## MLPOptConfig
+
+For hyperparameter optimization, use `MLPOptConfig`:
+
+```python
+from onyxengine.modeling import MLPOptConfig
+
+mlp_opt = MLPOptConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.01,
+    sequence_length={"select": [1, 4, 8, 12]},
+    hidden_layers={"range": [2, 5, 1]},
+    hidden_size={"select": [32, 64, 128]},
+    activation={"select": ['relu', 'gelu', 'tanh']},
+    dropout={"range": [0.0, 0.4, 0.1]},
+    bias=True
+)
+```

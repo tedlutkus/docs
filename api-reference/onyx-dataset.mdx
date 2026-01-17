@@ -1,0 +1,122 @@
+---
+title: OnyxDataset
+description: Dataset container class
+---
+
+```python
+from onyxengine.data import OnyxDataset
+
+dataset = OnyxDataset(
+    dataframe: pd.DataFrame = pd.DataFrame(),
+    features: List[str] = [],
+    dt: float = 0,
+    config: OnyxDatasetConfig = None
+)
+```
+
+Container class for datasets with a pandas DataFrame and metadata.
+
+## Parameters
+
+<ParamField path="dataframe" type="pd.DataFrame" default="pd.DataFrame()">
+  The pandas DataFrame containing the timeseries data.
+</ParamField>
+
+<ParamField path="features" type="List[str]" default="[]">
+  List of column names to include as features.
+</ParamField>
+
+<ParamField path="dt" type="float" default="0">
+  Time step between samples in seconds.
+</ParamField>
+
+<ParamField path="config" type="OnyxDatasetConfig" default="None">
+  Optional configuration object. If provided, `features` and `dt` are ignored.
+</ParamField>
+
+## Attributes
+
+<ResponseField name="dataframe" type="pd.DataFrame">
+  The underlying pandas DataFrame.
+</ResponseField>
+
+<ResponseField name="config" type="OnyxDatasetConfig">
+  Configuration object containing:
+  - `features`: List of feature names
+  - `dt`: Time step in seconds
+  - `type`: Always "dataset"
+</ResponseField>
+
+## Example
+
+### Create from DataFrame
+
+```python
+import pandas as pd
+from onyxengine.data import OnyxDataset
+
+# Load your data
+df = pd.read_csv('sensor_data.csv')
+
+# Create dataset
+dataset = OnyxDataset(
+    dataframe=df,
+    features=['acceleration', 'velocity', 'position', 'control'],
+    dt=0.01  # 100 Hz sampling
+)
+
+# Access properties
+print(dataset.dataframe.shape)
+print(dataset.config.features)
+print(dataset.config.dt)
+```
+
+### Load from Engine
+
+```python
+import onyxengine as onyx
+
+# Datasets returned by load_dataset are OnyxDataset objects
+dataset = onyx.load_dataset('example_train_data')
+
+print(type(dataset))  # <class 'onyxengine.data.dataset.OnyxDataset'>
+print(dataset.config.features)
+print(dataset.config.dt)
+```
+
+## OnyxDatasetConfig
+
+The config object contains metadata about the dataset:
+
+```python
+from onyxengine.data import OnyxDatasetConfig
+
+config = OnyxDatasetConfig(
+    features=['accel', 'vel', 'pos'],
+    dt=0.01
+)
+```
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `type` | str | Always "dataset" (read-only) |
+| `features` | List[str] | Feature column names |
+| `dt` | float | Time step in seconds |
+
+## Data Format Requirements
+
+The DataFrame should:
+
+- Contain numeric columns for all features
+- Have no missing values (NaN)
+- Be sampled at regular time intervals
+- Have columns matching the feature names
+
+```python
+# Prepare data
+df = df[features].dropna()
+for col in df.columns:
+    df[col] = df[col].astype('float32')
+
+dataset = OnyxDataset(dataframe=df, features=features, dt=0.01)
+```

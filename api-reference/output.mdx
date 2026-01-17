@@ -1,0 +1,137 @@
+---
+title: Output
+description: Model output feature definition
+---
+
+```python
+from onyxengine.modeling import Output
+
+feature = Output(
+    name: str,
+    dataset_feature: Optional[str] = None,
+    scale: Union[None, Literal['mean'], List[float]] = 'mean',
+    parent: Optional[str] = None,
+    relation: Optional[Literal['equal', 'delta', 'derivative']] = None
+)
+```
+
+Defines an output feature for the model - what the neural network predicts.
+
+## Parameters
+
+<ParamField path="name" type="str" required>
+  Name of the output feature. Used for dictionary access in simulation results.
+</ParamField>
+
+<ParamField path="dataset_feature" type="str" default="None">
+  Column name in the dataset. If `None`, uses `name`.
+</ParamField>
+
+<ParamField path="scale" type="Union[None, 'mean', List[float]]" default="mean">
+  Scaling method:
+  - `'mean'`: Normalize to zero mean, unit std (default)
+  - `None`: No scaling
+  - `[min, max]`: Scale from range to [-1, 1]
+</ParamField>
+
+<ParamField path="parent" type="str" default="None">
+  Parent output name for derived outputs. Required if `relation` is set.
+</ParamField>
+
+<ParamField path="relation" type="Literal" default="None">
+  Relationship to parent for derived outputs:
+  - `'derivative'`: `output[t+1] = output[t] + parent[t] * dt`
+  - `'delta'`: `output[t+1] = output[t] + parent[t]`
+  - `'equal'`: `output[t+1] = parent[t]`
+  - `None`: Direct prediction (default)
+</ParamField>
+
+## Output Types
+
+### Direct Output
+
+Most outputs are direct predictions from the neural network:
+
+```python
+Output(name='acceleration')
+Output(name='torque')
+Output(name='force')
+```
+
+### Derived Output
+
+Outputs can derive from other outputs (less common):
+
+```python
+outputs = [
+    Output(name='jerk'),  # Neural network predicts jerk
+    Output(name='acceleration', parent='jerk', relation='derivative'),  # Derived
+]
+```
+
+## Examples
+
+### Single Output
+
+```python
+from onyxengine.modeling import Output
+
+outputs = [Output(name='acceleration')]
+```
+
+### Multiple Outputs
+
+```python
+outputs = [
+    Output(name='acceleration_x'),
+    Output(name='acceleration_y'),
+    Output(name='acceleration_z'),
+]
+```
+
+### Custom Dataset Column Name
+
+```python
+# Feature named 'acceleration' maps to 'imu_accel_x' in dataset
+Output(name='acceleration', dataset_feature='imu_accel_x')
+```
+
+### Custom Scaling
+
+```python
+# Scale acceleration from [-50, 50] m/s² to [-1, 1]
+Output(name='acceleration', scale=[-50, 50])
+
+# No scaling
+Output(name='normalized_output', scale=None)
+```
+
+### Derived Outputs
+
+```python
+# Neural network predicts jerk, acceleration is derived
+outputs = [
+    Output(name='jerk'),
+    Output(name='acceleration', parent='jerk', relation='derivative'),
+]
+```
+
+## Simulation Access
+
+After simulation, access outputs by name:
+
+```python
+result = model.simulate(x0=..., external_inputs=..., sim_steps=100)
+
+# Access specific output
+acceleration = result.outputs['acceleration']  # Shape: (batch, sim_steps, 1)
+
+# Access all outputs as tensor
+all_outputs = result.outputs.tensor  # Shape: (batch, sim_steps, num_outputs)
+```
+
+## Validation
+
+- If `relation` is set, `parent` must also be set
+- If `parent` is set, `relation` must also be set
+- For derived outputs, parent must be another Output name

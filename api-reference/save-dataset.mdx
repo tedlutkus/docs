@@ -1,0 +1,102 @@
+---
+title: save_dataset
+description: Upload a dataset to the Onyx Engine
+---
+
+```python
+onyx.save_dataset(
+    name: str,
+    dataset: OnyxDataset,
+    source_datasets: List[Dict[str, Optional[str]]] = [],
+    time_format: Literal["datetime", "s", "ms", "us", "ns", "none"] = "s"
+)
+```
+
+Uploads an `OnyxDataset` to the Onyx Engine, making it available for model training.
+
+## Parameters
+
+<ParamField path="name" type="str" required>
+  The name for the new dataset. Must be a non-empty string.
+</ParamField>
+
+<ParamField path="dataset" type="OnyxDataset" required>
+  The `OnyxDataset` object containing the dataframe and metadata.
+</ParamField>
+
+<ParamField path="source_datasets" type="List[Dict[str, Optional[str]]]" default="[]">
+  Source datasets used to create this dataset, for lineage tracking. Each dictionary should have:
+  - `name` (str): Name of the source dataset
+  - `version_id` (str, optional): Specific version, or latest if not provided
+</ParamField>
+
+<ParamField path="time_format" type="Literal" default="s">
+  The time format of your data. Options:
+  - `"s"` - Seconds (default)
+  - `"ms"` - Milliseconds
+  - `"us"` - Microseconds
+  - `"ns"` - Nanoseconds
+  - `"datetime"` - Python datetime objects
+  - `"none"` - No time column
+</ParamField>
+
+## Returns
+
+None. Prints a confirmation message when upload completes.
+
+## Raises
+
+- `Exception`: If the dataset dataframe is empty
+- `Exception`: If the name is an empty string
+- `Exception`: If a source dataset is not found in the Engine
+
+## Example
+
+```python
+import pandas as pd
+import onyxengine as onyx
+from onyxengine.data import OnyxDataset
+
+# Create a dataset from a dataframe
+df = pd.read_csv('my_data.csv')
+dataset = OnyxDataset(
+    dataframe=df,
+    features=['acceleration', 'velocity', 'position', 'control'],
+    dt=0.01
+)
+
+# Upload to the Engine
+onyx.save_dataset(
+    name='my_training_data',
+    dataset=dataset,
+    time_format='s'
+)
+```
+
+### With Source Tracking
+
+```python
+# Load raw data
+raw = onyx.load_dataset('raw_sensor_data')
+
+# Process the data
+processed_df = process(raw.dataframe)
+processed = OnyxDataset(
+    dataframe=processed_df,
+    features=['accel', 'vel', 'pos'],
+    dt=0.01
+)
+
+# Save with lineage tracking
+onyx.save_dataset(
+    name='processed_data',
+    dataset=processed,
+    source_datasets=[{'name': 'raw_sensor_data'}]
+)
+```
+
+## Notes
+
+- The dataset is saved locally before uploading (in `~/.onyx/datasets/`)
+- Float64 columns are automatically converted to float32 for efficiency
+- The dataset becomes available for training once processing completes

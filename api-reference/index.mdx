@@ -1,0 +1,149 @@
+---
+title: API Reference
+description: Complete reference for the Onyx Engine Python SDK
+---
+
+This reference documents all public functions and classes in the `onyxengine` Python package.
+
+## Installation
+
+```bash
+pip install onyxengine
+```
+
+## Quick Reference
+
+### Core Functions
+
+| Function | Description |
+|----------|-------------|
+| [`save_dataset()`](/api-reference/save-dataset) | Upload a dataset to the Engine |
+| [`load_dataset()`](/api-reference/load-dataset) | Download a dataset from the Engine |
+| [`save_model()`](/api-reference/save-model) | Upload a model to the Engine |
+| [`load_model()`](/api-reference/load-model) | Download a model from the Engine |
+| [`train_model()`](/api-reference/train-model) | Train a model on the Engine |
+| [`optimize_model()`](/api-reference/optimize-model) | Run hyperparameter optimization |
+
+### Data Classes
+
+| Class | Description |
+|-------|-------------|
+| [`OnyxDataset`](/api-reference/onyx-dataset) | Dataset container with dataframe and metadata |
+
+### Model Configurations
+
+| Class | Description |
+|-------|-------------|
+| [`MLPConfig`](/api-reference/mlp-config) | Multi-Layer Perceptron configuration |
+| [`RNNConfig`](/api-reference/rnn-config) | Recurrent Neural Network configuration |
+| [`TransformerConfig`](/api-reference/transformer-config) | Transformer configuration |
+
+### Feature Classes
+
+| Class | Description |
+|-------|-------------|
+| [`Input`](/api-reference/input) | Model input feature definition |
+| [`Output`](/api-reference/output) | Model output feature definition |
+
+### Training Classes
+
+| Class | Description |
+|-------|-------------|
+| [`TrainingConfig`](/api-reference/training-config) | Training parameters |
+| [`OptimizationConfig`](/api-reference/optimization-config) | Hyperparameter search configuration |
+| [Optimizer Configs](/api-reference/optimizer-configs) | AdamW, SGD, and scheduler configurations |
+
+## Import Patterns
+
+```python
+# Main module
+import onyxengine as onyx
+
+# Core functions
+onyx.save_dataset(...)
+onyx.load_dataset(...)
+onyx.save_model(...)
+onyx.load_model(...)
+onyx.train_model(...)
+onyx.optimize_model(...)
+onyx.get_object_metadata(...)
+
+# Data classes
+from onyxengine.data import OnyxDataset
+
+# Modeling classes
+from onyxengine.modeling import (
+    # Feature classes
+    Input,
+    Output,
+
+    # Model configs
+    MLPConfig,
+    RNNConfig,
+    TransformerConfig,
+
+    # Training configs
+    TrainingConfig,
+    OptimizationConfig,
+
+    # Optimizers
+    AdamWConfig,
+    SGDConfig,
+
+    # Learning rate schedulers
+    CosineDecayWithWarmupConfig,
+    CosineAnnealingWarmRestartsConfig,
+
+    # Optimization configs (for hyperparameter search)
+    MLPOptConfig,
+    RNNOptConfig,
+    TransformerOptConfig,
+    AdamWOptConfig,
+    SGDOptConfig,
+    CosineDecayWithWarmupOptConfig,
+    CosineAnnealingWarmRestartsOptConfig,
+)
+```
+
+## Type Conventions
+
+The SDK uses Python type hints throughout:
+
+```python
+from typing import List, Dict, Optional, Union, Literal
+
+# Example function signature
+def load_model(
+    name: str,
+    version_id: Optional[str] = None,
+    mode: Literal["online", "offline"] = "online"
+) -> Union[MLP, RNN, Transformer]:
+    ...
+```
+
+## Error Handling
+
+SDK functions raise exceptions with descriptive messages:
+
+```python
+try:
+    model = onyx.load_model('nonexistent_model')
+except Exception as e:
+    print(f"Error: {e}")
+    # "Onyx Engine API error: Model [nonexistent_model: None] not found in the Engine."
+```
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `ONYX_API_KEY` | Your API key for authentication |
+
+## Local Storage
+
+The SDK caches datasets and models locally:
+
+- Datasets: `~/.onyx/datasets/`
+- Models: `~/.onyx/models/`
+
+Cached files are automatically updated when newer versions are available.

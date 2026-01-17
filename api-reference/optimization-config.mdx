@@ -1,0 +1,148 @@
+---
+title: OptimizationConfig
+description: Hyperparameter optimization configuration
+---
+
+```python
+from onyxengine.modeling import OptimizationConfig
+
+config = OptimizationConfig(
+    training_iters: int = 3000,
+    train_batch_size: int = 32,
+    train_val_split_ratio: float = 0.9,
+    test_dataset_size: int = 500,
+    checkpoint_type: Literal['single_step', 'multi_step'] = 'single_step',
+    opt_models: List[Union[MLPOptConfig, RNNOptConfig, TransformerOptConfig]] = [],
+    opt_optimizers: List[Union[AdamWOptConfig, SGDOptConfig]] = [],
+    opt_lr_schedulers: List[Union[None, CosineDecayWithWarmupOptConfig, CosineAnnealingWarmRestartsOptConfig]] = [None],
+    num_trials: int = 10
+)
+```
+
+Configuration for hyperparameter optimization search spaces.
+
+## Parameters
+
+<ParamField path="training_iters" type="int" default="3000">
+  Training iterations per trial. Range: 1-100,000.
+</ParamField>
+
+<ParamField path="train_batch_size" type="int" default="32">
+  Batch size for all trials. Minimum: 1.
+</ParamField>
+
+<ParamField path="train_val_split_ratio" type="float" default="0.9">
+  Train/validation split ratio. Range: 0.0-1.0.
+</ParamField>
+
+<ParamField path="test_dataset_size" type="int" default="500">
+  Test samples for visualization. Minimum: 1.
+</ParamField>
+
+<ParamField path="checkpoint_type" type="Literal" default="single_step">
+  Optimization target: `'single_step'` or `'multi_step'`.
+</ParamField>
+
+<ParamField path="opt_models" type="List" required>
+  Model architecture search spaces. Must have at least one.
+</ParamField>
+
+<ParamField path="opt_optimizers" type="List" required>
+  Optimizer search spaces. Must have at least one.
+</ParamField>
+
+<ParamField path="opt_lr_schedulers" type="List" default="[None]">
+  Learning rate scheduler search spaces. Include `None` to try no scheduler.
+</ParamField>
+
+<ParamField path="num_trials" type="int" default="10">
+  Number of optimization trials to run. Minimum: 1.
+</ParamField>
+
+## Example
+
+```python
+from onyxengine.modeling import (
+    OptimizationConfig,
+    MLPOptConfig, RNNOptConfig,
+    AdamWOptConfig,
+    CosineDecayWithWarmupOptConfig,
+    Input, Output
+)
+
+# Features
+outputs = [Output(name='acceleration')]
+inputs = [
+    Input(name='velocity', parent='acceleration', relation='derivative'),
+    Input(name='position', parent='velocity', relation='derivative'),
+    Input(name='control'),
+]
+
+# Model search spaces
+mlp_opt = MLPOptConfig(
+    outputs=outputs, inputs=inputs, dt=0.01,
+    sequence_length={"select": [4, 8, 12]},
+    hidden_layers={"range": [2, 4, 1]},
+    hidden_size={"select": [32, 64, 128]}
+)
+
+rnn_opt = RNNOptConfig(
+    outputs=outputs, inputs=inputs, dt=0.01,
+    rnn_type={"select": ['LSTM', 'GRU']},
+    sequence_length={"select": [8, 12]},
+    hidden_layers={"range": [2, 4, 1]},
+    hidden_size={"select": [32, 64]}
+)
+
+# Optimizer search space
+adamw_opt = AdamWOptConfig(
+    lr={"select": [1e-4, 3e-4, 1e-3]},
+    weight_decay={"select": [1e-3, 1e-2]}
+)
+
+# Scheduler search space
+lr_opt = CosineDecayWithWarmupOptConfig(
+    max_lr={"select": [3e-4, 1e-3]},
+    min_lr={"select": [1e-5, 3e-5]},
+    warmup_iters={"select": [100, 200]},
+    decay_iters={"select": [1000, 2000]}
+)
+
+# Full optimization config
+config = OptimizationConfig(
+    training_iters=2000,
+    train_batch_size=512,
+    checkpoint_type='single_step',
+    opt_models=[mlp_opt, rnn_opt],
+    opt_optimizers=[adamw_opt],
+    opt_lr_schedulers=[None, lr_opt],  # Try with and without scheduler
+    num_trials=20
+)
+```
+
+## Search Space Syntax
+
+### Fixed Value
+
+```python
+hidden_layers=3  # Always use 3
+```
+
+### Select (Discrete)
+
+```python
+hidden_size={"select": [32, 64, 128]}  # Choose from list
+```
+
+### Range (Numeric)
+
+```python
+dropout={"range": [0.0, 0.4, 0.1]}  # [start, end, step] → 0.0, 0.1, 0.2, 0.3, 0.4
+```
+
+## Validation
+
+- `opt_models` must have at least one config
+- `opt_optimizers` must have at least one config
+- `opt_lr_schedulers` must have at least one entry (can be `None`)
+- Cannot use `multi_step` checkpoint if no inputs have state relations

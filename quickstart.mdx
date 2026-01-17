@@ -1,80 +1,150 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Train your first AI model in 5 minutes
 ---
 
-## Get started in three steps
+This guide walks you through training a model using the example dataset included with every new Onyx Engine account.
 
-Get your documentation site running locally and make your first customization.
+<Info>
+Make sure you've completed the [installation](/installation) steps before continuing.
+</Info>
 
-### Step 1: Set up your local environment
+## Train a Model
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+Create a new Python file and add the following code:
 
-### Step 2: Deploy your changes
+```python
+from onyxengine.modeling import (
+    Output,
+    Input,
+    MLPConfig,
+    TrainingConfig,
+    AdamWConfig,
+)
+import onyxengine as onyx
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+# Define model outputs and inputs
+outputs = [
+    Output(name='acceleration_predicted'),
+]
+inputs = [
+    Input(name='velocity', parent='acceleration_predicted', relation='derivative'),
+    Input(name='position', parent='velocity', relation='derivative'),
+    Input(name='control_input'),
+]
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+# Configure the model
+model_config = MLPConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.0025,
+    sequence_length=8,
+    hidden_layers=3,
+    hidden_size=64,
+    activation='relu',
+    dropout=0.2,
+)
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+# Configure training
+training_config = TrainingConfig(
+    training_iters=2000,
+    train_batch_size=1024,
+    optimizer=AdamWConfig(lr=3e-4, weight_decay=1e-2),
+)
 
-### Step 3: Go live
+# Start training
+onyx.train_model(
+    model_name='my_first_model',
+    model_config=model_config,
+    dataset_name='example_train_data',
+    training_config=training_config,
+    monitor_training=True
+)
+```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+Run the script to start training. The progress displays in your terminal:
 
-## Next steps
+```
+Preparing to train model [my_first_model] using dataset [example_train_data].
+Training started...
+[====================================] 100% | 2000/2000 iters | Loss: 0.0023
+Training complete!
+```
 
-Now that you have your docs running, explore these key features:
+## Load and Use the Model
+
+Once training completes, load your model and run a simulation:
+
+```python
+import torch
+import onyxengine as onyx
+
+# Load the trained model
+model = onyx.load_model('my_first_model')
+
+# Create initial state tensors
+batch_size = 1
+seq_length = model.config.sequence_length
+
+# Initial conditions (velocity and position)
+velocity = torch.zeros(batch_size, seq_length, 1)
+position = torch.zeros(batch_size, seq_length, 1)
+
+# External inputs for the full simulation
+sim_steps = 100
+control_input = torch.ones(batch_size, seq_length + sim_steps, 1) * 0.5
+
+# Run simulation
+result = model.simulate(
+    x0={'velocity': velocity, 'position': position},
+    external_inputs={'control_input': control_input},
+    sim_steps=sim_steps
+)
+
+# Access results
+print("Velocity trajectory shape:", result.inputs['velocity'].shape)
+print("Position trajectory shape:", result.inputs['position'].shape)
+print("Acceleration output shape:", result.outputs['acceleration_predicted'].shape)
+```
+
+## Understanding the Code
+
+### Model Inputs and Outputs
+
+The key to Onyx models is defining the relationships between features:
+
+- **`Output`**: Features the model predicts (here, acceleration)
+- **`Input`**: Features fed into the model, including:
+  - **States**: Inputs derived from outputs using `parent` and `relation`
+  - **External inputs**: Known values like control signals
+
+The `relation` parameter defines how states update during simulation:
+- `'derivative'`: The parent is the time derivative of this feature
+- `'delta'`: The parent is the change per timestep
+- `'equal'`: The parent equals this feature
+
+### Simulation
+
+The `simulate()` method handles multi-step prediction:
+
+1. Takes initial state values in `x0`
+2. Takes external inputs for the full trajectory in `external_inputs`
+3. Automatically integrates states using the defined relations
+4. Returns a `SimulationResult` with trajectory data for all features
+
+## Next Steps
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Training Tutorial" icon="graduation-cap" href="/tutorials/training-models">
+    Deep dive into model configuration and training options
+  </Card>
+  <Card title="Simulation Tutorial" icon="play" href="/tutorials/simulating-models">
+    Learn advanced simulation techniques
+  </Card>
+  <Card title="Feature Engineering" icon="gear" href="/concepts/feature-engineering">
+    Understand Input/Output relationships
+  </Card>
+  <Card title="Platform Overview" icon="browser" href="/platform/overview">
+    Monitor training and view results in the web UI
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

@@ -1,0 +1,110 @@
+---
+title: Installation
+description: Set up your Onyx Engine account and install the Python SDK
+---
+
+## Prerequisites
+
+- Python 3.9 or higher
+- pip package manager
+- An Onyx Engine account
+
+## Create an Account
+
+Create your account on the [Engine Platform](https://engine.onyx-robotics.com). New users automatically get a Starter plan with example datasets to explore.
+
+## Get Your API Key
+
+Your API key authenticates requests to the Engine. To get your key:
+
+1. Log in to the [Engine Platform](https://engine.onyx-robotics.com)
+2. Click your profile icon in the top right corner
+3. Select **Settings**
+4. Navigate to the **API Keys** tab
+5. Click **Regenerate** to create a new API key
+6. Copy and save the key securely
+
+<Warning>
+Store your API key securely. You cannot view it again after leaving the page. If you lose it, generate a new one from the Settings page.
+</Warning>
+
+## Set Your API Key
+
+Add your API key to your environment variables:
+
+<Tabs>
+  <Tab title="Linux/macOS">
+    ```bash
+    echo 'export ONYX_API_KEY="your_api_key_here"' >> ~/.bashrc
+    source ~/.bashrc
+    ```
+
+    For zsh users:
+    ```bash
+    echo 'export ONYX_API_KEY="your_api_key_here"' >> ~/.zshrc
+    source ~/.zshrc
+    ```
+  </Tab>
+  <Tab title="Windows">
+    ```powershell
+    [Environment]::SetEnvironmentVariable("ONYX_API_KEY", "your_api_key_here", "User")
+    ```
+
+    Restart your terminal for changes to take effect.
+  </Tab>
+</Tabs>
+
+## Install the Package
+
+Install the onyx-engine package using pip:
+
+```bash
+pip install onyxengine
+```
+
+## Verify Installation
+
+Test your installation by retrieving metadata for the example dataset:
+
+```python
+import json
+import onyxengine as onyx
+
+metadata = onyx.get_object_metadata('example_train_data')
+print(json.dumps(metadata, indent=2))
+```
+
+You should see output similar to:
+
+```json
+{
+  "name": "example_train_data",
+  "type": "dataset",
+  "created_at": "2025-04-14T15:54:40.516003+00:00",
+  "config": {
+    "type": "dataset",
+    "features": [
+      "acceleration_predicted",
+      "velocity",
+      "position",
+      "control_input"
+    ],
+    "dt": 0.0025
+  },
+  "status": "active",
+  "id": "52aea6f3-f61e-487b-981b-901e11b4a9c0"
+}
+```
+
+If you see the metadata output, your installation is working correctly.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Train your first model in 5 minutes
+  </Card>
+  <Card title="Working with Datasets" icon="database" href="/tutorials/working-with-datasets">
+    Learn how to create and manage datasets
+  </Card>
+</CardGroup>

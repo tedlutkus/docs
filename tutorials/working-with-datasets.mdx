@@ -1,0 +1,224 @@
+---
+title: Working with Datasets
+description: Create, save, and load datasets for model training
+---
+
+Datasets in Onyx Engine are managed through the `OnyxDataset` class. This tutorial covers how to create datasets from your data and use them for training.
+
+## Creating a Dataset
+
+An `OnyxDataset` wraps a pandas DataFrame with metadata about the features and time step:
+
+```python
+import pandas as pd
+from onyxengine.data import OnyxDataset
+import onyxengine as onyx
+
+# Load your raw data
+df = pd.read_csv('my_hardware_data.csv')
+
+# Create an OnyxDataset
+dataset = OnyxDataset(
+    dataframe=df,
+    features=['acceleration', 'velocity', 'position', 'control_input'],
+    dt=0.01  # Time step in seconds
+)
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `dataframe` | `pd.DataFrame` | Your timeseries data |
+| `features` | `List[str]` | Column names to include in the dataset |
+| `dt` | `float` | Time step between samples in seconds |
+
+## Data Format Requirements
+
+Your data should be a timeseries with:
+
+- **Consistent time step**: Samples at regular intervals
+- **Numeric columns**: All features must be numeric (float32 recommended)
+- **No missing values**: Drop or interpolate NaN values before creating a dataset
+- **Contiguous data**: If you have multiple episodes, they should be concatenated vertically
+
+### Example: Preparing Raw Data
+
+```python
+import pandas as pd
+import onyxengine as onyx
+from onyxengine.data import OnyxDataset
+
+# Load raw sensor data
+raw_data = pd.read_csv('sensor_logs.csv')
+
+# Select and rename columns for training
+train_data = pd.DataFrame()
+train_data['acceleration'] = raw_data['imu_accel_x']
+train_data['velocity'] = raw_data['encoder_velocity']
+train_data['position'] = raw_data['encoder_position']
+train_data['control_input'] = raw_data['motor_command']
+
+# Clean the data
+train_data = train_data.dropna()
+
+# Convert to float32 for efficiency
+for col in train_data.columns:
+    train_data[col] = train_data[col].astype('float32')
+
+# Create dataset
+dataset = OnyxDataset(
+    dataframe=train_data,
+    features=list(train_data.columns),
+    dt=0.01
+)
+```
+
+## Saving Datasets
+
+Save your dataset to the Engine for training:
+
+```python
+onyx.save_dataset(
+    name='my_training_data',
+    dataset=dataset,
+    time_format='s'  # Time is in seconds
+)
+```
+
+The dataset uploads to the cloud and becomes available for training jobs.
+
+### Source Dataset Tracking
+
+When creating derived datasets, you can track lineage by specifying source datasets:
+
+```python
+# Load a raw dataset
+raw_dataset = onyx.load_dataset('raw_sensor_data')
+
+# Process and create a training dataset
+train_df = process_data(raw_dataset.dataframe)
+train_dataset = OnyxDataset(
+    dataframe=train_df,
+    features=['acceleration', 'velocity', 'position', 'control'],
+    dt=0.01
+)
+
+# Save with source tracking
+onyx.save_dataset(
+    name='processed_training_data',
+    dataset=train_dataset,
+    source_datasets=[{'name': 'raw_sensor_data'}],
+    time_format='s'
+)
+```
+
+### Time Format Options
+
+| Format | Description |
+|--------|-------------|
+| `'s'` | Seconds (default) |
+| `'ms'` | Milliseconds |
+| `'us'` | Microseconds |
+| `'ns'` | Nanoseconds |
+| `'datetime'` | Python datetime objects |
+| `'none'` | No time column |
+
+## Loading Datasets
+
+Load datasets from the Engine:
+
+```python
+# Load the latest version
+dataset = onyx.load_dataset('my_training_data')
+
+# Access the data
+print(dataset.dataframe.head())
+print(f"Features: {dataset.config.features}")
+print(f"Time step: {dataset.config.dt} seconds")
+```
+
+### Loading Specific Versions
+
+Each dataset save creates a new version. Load a specific version by ID:
+
+```python
+# Load a specific version
+dataset = onyx.load_dataset(
+    'my_training_data',
+    version_id='a05fb872-0a7d-4a68-b189-aeece143c7e4'
+)
+```
+
+### Checking Dataset Metadata
+
+Get metadata without downloading the full dataset:
+
+```python
+import json
+
+metadata = onyx.get_object_metadata('my_training_data')
+print(json.dumps(metadata, indent=2))
+```
+
+Output:
+```json
+{
+  "name": "my_training_data",
+  "type": "dataset",
+  "config": {
+    "features": ["acceleration", "velocity", "position", "control_input"],
+    "dt": 0.01
+  },
+  "status": "active",
+  "id": "52aea6f3-f61e-487b-981b-901e11b4a9c0"
+}
+```
+
+## Local Caching
+
+Datasets are cached locally after the first download. The SDK automatically:
+
+1. Checks if the local version matches the requested version
+2. Downloads only if the local cache is outdated
+3. Stores files in `~/.onyx/datasets/`
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use descriptive names">
+    Name datasets clearly to indicate their purpose:
+    - `robot_arm_raw_data_2025_01`
+    - `robot_arm_training_v2`
+    - `motor_control_validation`
+  </Accordion>
+
+  <Accordion title="Track data lineage">
+    Always specify `source_datasets` when creating derived datasets. This helps you trace which raw data produced each model.
+  </Accordion>
+
+  <Accordion title="Validate before saving">
+    Check your data before uploading:
+    ```python
+    # Check for issues
+    assert not dataset.dataframe.empty, "Dataset is empty"
+    assert not dataset.dataframe.isnull().any().any(), "Dataset has NaN values"
+    assert len(dataset.config.features) > 0, "No features specified"
+    ```
+  </Accordion>
+
+  <Accordion title="Use consistent time steps">
+    Ensure your `dt` parameter matches the actual sampling rate of your data. Incorrect `dt` values will cause integration errors during simulation.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Training Models" icon="graduation-cap" href="/tutorials/training-models">
+    Use your dataset to train a model
+  </Card>
+  <Card title="Platform Upload" icon="upload" href="/platform/uploading-datasets">
+    Upload datasets via the web interface
+  </Card>
+</CardGroup>

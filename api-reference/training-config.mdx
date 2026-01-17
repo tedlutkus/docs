@@ -1,0 +1,123 @@
+---
+title: TrainingConfig
+description: Model training configuration
+---
+
+```python
+from onyxengine.modeling import TrainingConfig
+
+config = TrainingConfig(
+    training_iters: int = 3000,
+    train_batch_size: int = 32,
+    train_val_split_ratio: float = 0.9,
+    test_dataset_size: int = 500,
+    checkpoint_type: Literal['single_step', 'multi_step'] = 'single_step',
+    optimizer: Union[AdamWConfig, SGDConfig] = AdamWConfig(),
+    lr_scheduler: Union[None, CosineDecayWithWarmupConfig, CosineAnnealingWarmRestartsConfig] = None
+)
+```
+
+Configuration for model training parameters.
+
+## Parameters
+
+<ParamField path="training_iters" type="int" default="3000">
+  Total number of training iterations. Range: 1-100,000.
+</ParamField>
+
+<ParamField path="train_batch_size" type="int" default="32">
+  Number of samples per training batch. Minimum: 1.
+</ParamField>
+
+<ParamField path="train_val_split_ratio" type="float" default="0.9">
+  Fraction of data for training (rest is validation). Range: 0.0-1.0.
+</ParamField>
+
+<ParamField path="test_dataset_size" type="int" default="500">
+  Number of samples reserved for test visualization. Minimum: 1.
+</ParamField>
+
+<ParamField path="checkpoint_type" type="Literal" default="single_step">
+  What to optimize for:
+  - `'single_step'`: Best one-step-ahead prediction
+  - `'multi_step'`: Best trajectory simulation
+</ParamField>
+
+<ParamField path="optimizer" type="Union[AdamWConfig, SGDConfig]" default="AdamWConfig()">
+  Optimizer configuration.
+</ParamField>
+
+<ParamField path="lr_scheduler" type="Union[None, CosineDecayWithWarmupConfig, CosineAnnealingWarmRestartsConfig]" default="None">
+  Learning rate scheduler configuration. `None` for constant learning rate.
+</ParamField>
+
+## Example
+
+### Basic Configuration
+
+```python
+from onyxengine.modeling import TrainingConfig
+
+config = TrainingConfig(
+    training_iters=2000,
+    train_batch_size=256,
+    checkpoint_type='single_step'
+)
+```
+
+### With Optimizer and Scheduler
+
+```python
+from onyxengine.modeling import (
+    TrainingConfig,
+    AdamWConfig,
+    CosineDecayWithWarmupConfig
+)
+
+config = TrainingConfig(
+    training_iters=5000,
+    train_batch_size=512,
+    train_val_split_ratio=0.9,
+    test_dataset_size=500,
+    checkpoint_type='multi_step',
+    optimizer=AdamWConfig(lr=3e-4, weight_decay=1e-2),
+    lr_scheduler=CosineDecayWithWarmupConfig(
+        max_lr=3e-4,
+        min_lr=3e-5,
+        warmup_iters=200,
+        decay_iters=3000
+    )
+)
+```
+
+### For Production
+
+```python
+config = TrainingConfig(
+    training_iters=10000,
+    train_batch_size=1024,
+    checkpoint_type='multi_step',
+    optimizer=AdamWConfig(lr=1e-3, weight_decay=1e-2),
+    lr_scheduler=CosineDecayWithWarmupConfig(
+        max_lr=1e-3,
+        min_lr=1e-5,
+        warmup_iters=500,
+        decay_iters=8000
+    )
+)
+```
+
+## Checkpoint Types
+
+| Type | Optimizes For | Use Case |
+|------|---------------|----------|
+| `'single_step'` | Next-step prediction | Debugging, quick iteration |
+| `'multi_step'` | Trajectory simulation | Final models, deployment |
+
+## Data Splits
+
+| Split | Purpose | Size |
+|-------|---------|------|
+| Training | Weight updates | `train_val_split_ratio` of data |
+| Validation | Overfitting detection | `1 - train_val_split_ratio` of data |
+| Test | Visualization | `test_dataset_size` samples |

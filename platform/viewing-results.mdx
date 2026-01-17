@@ -1,0 +1,191 @@
+---
+title: Viewing Results
+description: Analyze training results and manage model versions
+---
+
+After training completes, the Onyx Engine platform provides tools to analyze results, compare models, and download trained weights.
+
+## Jobs Tab
+
+The Jobs tab shows all training and optimization jobs:
+
+<Frame>
+  <img src="/images/jobs.png" alt="Jobs tab showing training history" />
+</Frame>
+
+Each job displays:
+- **Status**: Queued, Running, Completed, Failed
+- **Model name**: Target model for this job
+- **Dataset**: Source training data
+- **Progress**: Iterations completed
+- **Metrics**: Final loss values
+
+## Model Details
+
+Click on a model to view detailed information:
+
+<Frame>
+  <img src="/images/details.png" alt="Model details view" />
+</Frame>
+
+### Overview
+
+- **Configuration**: Architecture, hyperparameters, features
+- **Training history**: Loss curves over iterations
+- **Source dataset**: Which data trained this model
+
+### Versions
+
+Each training run creates a new model version. The platform tracks:
+- Version ID
+- Training date
+- Final metrics
+- Configuration differences
+
+### Test Predictions
+
+Visualize model predictions on test data:
+
+- **Ground truth**: Actual values from dataset
+- **Predictions**: Model outputs
+- **Error**: Difference between predicted and actual
+
+## Lineage Tracking
+
+View the complete data-to-model lineage:
+
+<Frame>
+  <img src="/images/lineage.png" alt="Data lineage visualization" />
+</Frame>
+
+The lineage view shows:
+- Which raw datasets were processed
+- Which training datasets were created
+- Which models were trained from each dataset
+- Version history for each object
+
+## Comparing Models
+
+To compare multiple models:
+
+1. Select models from the Table view
+2. Click "Compare"
+3. View side-by-side metrics and configurations
+
+Comparison shows:
+- Architecture differences
+- Hyperparameter differences
+- Loss curve overlays
+- Final metric comparison
+
+## Downloading Models
+
+### Via Platform
+
+1. Navigate to the model
+2. Click "Download"
+3. Save the `.pt` file locally
+
+### Via SDK
+
+```python
+import onyxengine as onyx
+
+# Download latest version
+model = onyx.load_model('my_model')
+
+# Download specific version
+model = onyx.load_model('my_model', version_id='abc123...')
+
+# Model is cached locally at ~/.onyx/models/
+```
+
+## Understanding Metrics
+
+### Single-Step Loss
+
+- Measures one-step prediction accuracy
+- Lower is better
+- Good baseline metric for model quality
+
+### Multi-Step Loss
+
+- Measures trajectory simulation accuracy
+- More relevant for deployment
+- Sensitive to error accumulation
+
+### Interpreting Values
+
+| Loss Range | Interpretation |
+|------------|----------------|
+| < 0.001 | Excellent fit |
+| 0.001 - 0.01 | Good fit |
+| 0.01 - 0.1 | Moderate fit, may need improvement |
+| > 0.1 | Poor fit, check configuration |
+
+<Note>
+Loss values are relative to your data. Compare across models trained on the same dataset.
+</Note>
+
+## Optimization Results
+
+For optimization jobs, additional information is available:
+
+### Trial Comparison
+
+- Each trial's configuration
+- Metrics for each trial
+- Best trial identification
+
+### Hyperparameter Analysis
+
+- Which parameters had the biggest impact
+- Correlation between parameters and performance
+- Recommended configurations
+
+## Managing Versions
+
+### Setting Default Version
+
+1. Navigate to the model
+2. Go to Versions tab
+3. Click "Set as Default" on your preferred version
+
+The default version is returned by `load_model()` without a version ID.
+
+### Deleting Versions
+
+1. Navigate to the model version
+2. Click "Delete"
+3. Confirm deletion
+
+<Warning>
+Deleted versions cannot be recovered. Downloaded copies remain valid.
+</Warning>
+
+## Exporting Results
+
+### Export Metrics
+
+Download training metrics as CSV:
+- Loss history
+- Learning rate schedule
+- Validation metrics
+
+### Export Configuration
+
+Download model configuration as JSON:
+- Architecture parameters
+- Feature definitions
+- Training settings
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Simulating Models" icon="play" href="/tutorials/simulating-models">
+    Deploy your trained model
+  </Card>
+  <Card title="Model Optimization" icon="sliders" href="/tutorials/optimizing-models">
+    Find the best hyperparameters
+  </Card>
+</CardGroup>

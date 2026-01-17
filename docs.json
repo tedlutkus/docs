@@ -15,6 +15,9 @@
       }
     }
   },
+  "icons": {
+    "library": "lucide"
+  },
   "background": {
     "decoration": "grid"
   },
@@ -30,6 +33,7 @@
         "groups": [
           {
             "group": "Getting Started",
+            "icon": "rocket",
             "pages": [
               "index",
               "quickstart",
@@ -38,6 +42,7 @@
           },
           {
             "group": "Tutorials",
+            "icon": "book-open",
             "pages": [
               "tutorials/working-with-datasets",
               "tutorials/training-models",
@@ -47,6 +52,7 @@
           },
           {
             "group": "Concepts",
+            "icon": "lightbulb",
             "pages": [
               "concepts/model-architectures",
               "concepts/feature-engineering",
@@ -55,6 +61,7 @@
           },
           {
             "group": "Platform",
+            "icon": "monitor",
             "pages": [
               "platform/overview",
               "platform/uploading-datasets",
@@ -121,7 +128,7 @@
         {
           "anchor": "Platform",
           "href": "https://engine.onyx-robotics.com",
-          "icon": "browser"
+          "icon": "globe"
         },
         {
           "anchor": "GitHub",
@@ -137,6 +144,10 @@
   },
   "navbar": {
     "links": [
+      {
+        "label": "Home",
+        "href": "https://onyx-robotics.com"
+      },
       {
         "label": "Support",
         "href": "mailto:support@onyx-robotics.com"

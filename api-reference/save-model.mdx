@@ -41,8 +41,11 @@ None. Prints a confirmation message when upload completes.
 ## Example
 
 ```python
-import onyxengine as onyx
+from onyxengine import Onyx
 from onyxengine.modeling import MLP, MLPConfig, Input, Output
+
+# Initialize the client
+onyx = Onyx()
 
 # Create model configuration
 outputs = [Output(name='acceleration')]

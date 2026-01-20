@@ -89,7 +89,10 @@ Comparison shows:
 ### Via SDK
 
 ```python
-import onyxengine as onyx
+from onyxengine import Onyx
+
+# Initialize the client
+onyx = Onyx()
 
 # Download latest version
 model = onyx.load_model('my_model')

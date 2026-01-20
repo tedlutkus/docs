@@ -43,7 +43,10 @@ Downloads a trained model from the Onyx Engine. Uses local cache when available.
 ## Example
 
 ```python
-import onyxengine as onyx
+from onyxengine import Onyx
+
+# Initialize the client
+onyx = Onyx()
 
 # Load the latest version
 model = onyx.load_model('example_model')
@@ -78,7 +81,9 @@ model = onyx.load_model('example_model', mode='offline')
 
 ```python
 import torch
+from onyxengine import Onyx
 
+onyx = Onyx()
 model = onyx.load_model('example_model')
 seq_length = model.config.sequence_length
 
@@ -99,7 +104,9 @@ result = model.simulate(
 
 ```python
 import torch
+from onyxengine import Onyx
 
+onyx = Onyx()
 model = onyx.load_model('example_model')
 
 # Single forward pass

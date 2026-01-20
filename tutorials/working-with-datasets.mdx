@@ -11,8 +11,11 @@ An `OnyxDataset` wraps a pandas DataFrame with metadata about the features and t
 
 ```python
 import pandas as pd
+from onyxengine import Onyx
 from onyxengine.data import OnyxDataset
-import onyxengine as onyx
+
+# Initialize the client
+onyx = Onyx()
 
 # Load your raw data
 df = pd.read_csv('my_hardware_data.csv')
@@ -46,8 +49,11 @@ Your data should be a timeseries with:
 
 ```python
 import pandas as pd
-import onyxengine as onyx
+from onyxengine import Onyx
 from onyxengine.data import OnyxDataset
+
+# Initialize the client
+onyx = Onyx()
 
 # Load raw sensor data
 raw_data = pd.read_csv('sensor_logs.csv')
@@ -129,6 +135,10 @@ onyx.save_dataset(
 Load datasets from the Engine:
 
 ```python
+from onyxengine import Onyx
+
+onyx = Onyx()
+
 # Load the latest version
 dataset = onyx.load_dataset('my_training_data')
 
@@ -156,7 +166,9 @@ Get metadata without downloading the full dataset:
 
 ```python
 import json
+from onyxengine import Onyx
 
+onyx = Onyx()
 metadata = onyx.get_object_metadata('my_training_data')
 print(json.dumps(metadata, indent=2))
 ```

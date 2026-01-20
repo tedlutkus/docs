@@ -44,6 +44,7 @@ None. Optimization runs on the Engine and model versions are saved for each tria
 ## Example
 
 ```python
+from onyxengine import Onyx
 from onyxengine.modeling import (
     Output, Input,
     OptimizationConfig,
@@ -51,7 +52,9 @@ from onyxengine.modeling import (
     AdamWOptConfig,
     CosineDecayWithWarmupOptConfig
 )
-import onyxengine as onyx
+
+# Initialize the client
+onyx = Onyx()
 
 # Define features
 outputs = [Output(name='acceleration_predicted')]

@@ -14,6 +14,7 @@ Make sure you've completed the [installation](/installation) steps before contin
 Create a new Python file and add the following code:
 
 ```python
+from onyxengine import Onyx
 from onyxengine.modeling import (
     Output,
     Input,
@@ -21,7 +22,9 @@ from onyxengine.modeling import (
     TrainingConfig,
     AdamWConfig,
 )
-import onyxengine as onyx
+
+# Initialize the client (uses ONYX_API_KEY env var)
+onyx = Onyx()
 
 # Define model outputs and inputs
 outputs = [
@@ -77,7 +80,10 @@ Once training completes, load your model and run a simulation:
 
 ```python
 import torch
-import onyxengine as onyx
+from onyxengine import Onyx
+
+# Initialize the client
+onyx = Onyx()
 
 # Load the trained model
 model = onyx.load_model('my_first_model')

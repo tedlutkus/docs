@@ -10,6 +10,7 @@ This tutorial covers the complete workflow for training models in Onyx Engine, f
 Here's a full training script you can use as a starting point:
 
 ```python
+from onyxengine import Onyx
 from onyxengine.modeling import (
     Output,
     Input,
@@ -18,7 +19,9 @@ from onyxengine.modeling import (
     AdamWConfig,
     CosineDecayWithWarmupConfig
 )
-import onyxengine as onyx
+
+# Initialize the client
+onyx = Onyx()
 
 # Define model structure
 outputs = [
@@ -283,6 +286,9 @@ With `monitor_training=True`, you'll see real-time progress. You can also monito
 ### Load Your Model
 
 ```python
+from onyxengine import Onyx
+
+onyx = Onyx()
 model = onyx.load_model('my_model')
 print(model.config)
 ```
@@ -290,6 +296,9 @@ print(model.config)
 ### Load a Specific Version
 
 ```python
+from onyxengine import Onyx
+
+onyx = Onyx()
 model = onyx.load_model('my_model', version_id='dcfec841-1748-47e2-b6c7-3c821cc69b4a')
 ```
 

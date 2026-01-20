@@ -56,10 +56,13 @@ pip install onyxengine
 ## Import Patterns
 
 ```python
-# Main module
-import onyxengine as onyx
+# Initialize the client
+from onyxengine import Onyx
 
-# Core functions
+onyx = Onyx()  # Uses ONYX_API_KEY env var
+# Or explicitly: onyx = Onyx(api_key="your_api_key")
+
+# Client methods
 onyx.save_dataset(...)
 onyx.load_dataset(...)
 onyx.save_model(...)
@@ -123,9 +126,13 @@ def load_model(
 
 ## Error Handling
 
-SDK functions raise exceptions with descriptive messages:
+Client methods raise exceptions with descriptive messages:
 
 ```python
+from onyxengine import Onyx
+
+onyx = Onyx()
+
 try:
     model = onyx.load_model('nonexistent_model')
 except Exception as e:

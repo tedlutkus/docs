@@ -54,8 +54,11 @@ None. Prints a confirmation message when upload completes.
 
 ```python
 import pandas as pd
-import onyxengine as onyx
+from onyxengine import Onyx
 from onyxengine.data import OnyxDataset
+
+# Initialize the client
+onyx = Onyx()
 
 # Create a dataset from a dataframe
 df = pd.read_csv('my_data.csv')
@@ -76,6 +79,10 @@ onyx.save_dataset(
 ### With Source Tracking
 
 ```python
+from onyxengine import Onyx
+
+onyx = Onyx()
+
 # Load raw data
 raw = onyx.load_dataset('raw_sensor_data')
 

@@ -8,6 +8,7 @@ Model optimization in Onyx Engine lets you automatically search across model arc
 ## Complete Optimization Example
 
 ```python
+from onyxengine import Onyx
 from onyxengine.modeling import (
     Output,
     Input,
@@ -19,7 +20,9 @@ from onyxengine.modeling import (
     SGDOptConfig,
     CosineDecayWithWarmupOptConfig,
 )
-import onyxengine as onyx
+
+# Initialize the client
+onyx = Onyx()
 
 # Define model inputs/outputs
 outputs = [
@@ -285,6 +288,10 @@ Each trial creates a new version of the model. Monitor progress in the [Engine P
 After optimization completes, load the best model or any specific trial:
 
 ```python
+from onyxengine import Onyx
+
+onyx = Onyx()
+
 # Load the latest (best) version
 best_model = onyx.load_model('optimized_model')
 

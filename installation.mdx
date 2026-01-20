@@ -68,7 +68,10 @@ Test your installation by retrieving metadata for the example dataset:
 
 ```python
 import json
-import onyxengine as onyx
+from onyxengine import Onyx
+
+# Initialize the client (uses ONYX_API_KEY env var)
+onyx = Onyx()
 
 metadata = onyx.get_object_metadata('example_train_data')
 print(json.dumps(metadata, indent=2))

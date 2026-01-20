@@ -54,10 +54,13 @@ None. Training runs on the Engine and the model is saved automatically upon comp
 ## Example
 
 ```python
+from onyxengine import Onyx
 from onyxengine.modeling import (
     Output, Input, MLPConfig, TrainingConfig, AdamWConfig
 )
-import onyxengine as onyx
+
+# Initialize the client
+onyx = Onyx()
 
 # Define model structure
 outputs = [Output(name='acceleration_predicted')]

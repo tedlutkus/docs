@@ -51,8 +51,11 @@ Onyx Engine is designed for controls engineers who need AI models that:
 ## Quick Example
 
 ```python
-import onyxengine as onyx
+from onyxengine import Onyx
 from onyxengine.modeling import Input, Output, MLPConfig, TrainingConfig
+
+# Initialize the client (uses ONYX_API_KEY env var)
+onyx = Onyx()
 
 # Define model structure
 outputs = [Output(name='acceleration')]

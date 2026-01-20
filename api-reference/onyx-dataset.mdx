@@ -74,7 +74,10 @@ print(dataset.config.dt)
 ### Load from Engine
 
 ```python
-import onyxengine as onyx
+from onyxengine import Onyx
+
+# Initialize the client
+onyx = Onyx()
 
 # Datasets returned by load_dataset are OnyxDataset objects
 dataset = onyx.load_dataset('example_train_data')

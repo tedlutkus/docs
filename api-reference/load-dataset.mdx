@@ -38,7 +38,10 @@ Downloads an `OnyxDataset` from the Onyx Engine. Uses local cache when available
 ## Example
 
 ```python
-import onyxengine as onyx
+from onyxengine import Onyx
+
+# Initialize the client
+onyx = Onyx()
 
 # Load the latest version
 dataset = onyx.load_dataset('example_train_data')

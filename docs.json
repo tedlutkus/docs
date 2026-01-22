@@ -44,7 +44,7 @@
             "group": "Tutorials",
             "icon": "book-open",
             "pages": [
-              "tutorials/working-with-datasets",
+              "tutorials/uploading-datasets",
               "tutorials/training-models",
               "tutorials/optimizing-models",
               "tutorials/simulating-models"

@@ -1,0 +1,178 @@
+---
+title: Uploading Datasets
+description: Collect, save, and load datasets of your hardware for AI model training
+---
+
+Dataset handling in the Onyx Engine is intentionally minimal, the goal is to drop in data and get models as quickly as possible. 
+Our requirements for data formatting follow general best practices for AI modeling that are applicable to any training framework.
+
+## Collecting Good Data
+
+Onyx tools are used after you already have data, but since data is critical to model performance, we've included some tips for getting good data.
+
+#### What Data to Collect
+
+The first rule of thumb is: **Whatever dynamics you want to model, you should capture in the data**.
+
+More technically speaking, the distribution of your dataset will reflect the distribution in which your AI models will be accurate. 
+To get models that generalize well when simulating dynamics, we want our data collection to cover as much of the frequencies and behaviors of our dynamics as possible.
+
+To excite the dynamics of controlled systems, we suggest mixing the kinds of control behaviors you anticipate seeing during operation along with a combination of sine waves, sine chirps, and random steps/pulses at varying frequencies and amplitudes.
+
+**With this said, if you have data already, try that out first!** We've made it easy to experiment with different datasets to rapidly iterate on your models.
+
+#### Amount of Data and Sampling Rate
+
+There is no strict requirement for the amount of data you need, and more data is generally better, but here's a rough baseline:
+- `1 hour` of time series data (can be separate episodes/experiments), however 10-15 minutes may be enough for some applications.
+- `10Hz+` sampling rate. Higher is better, you can always downsample later.
+
+## Creating an Onyx Dataset
+
+Datasets in the Python SDK are managed through the `OnyxDataset` class, which is simply a pandas DataFrame with additional metadata about the features and time step.
+
+```python
+import pandas as pd
+from onyxengine import Onyx
+from onyxengine.data import OnyxDataset
+
+# Initialize the client
+onyx = Onyx()
+
+# Load your raw data
+df = pd.read_csv('my_hardware_data.csv')
+
+# Create an OnyxDataset
+dataset = OnyxDataset(
+    dataframe=df,
+    features=['acceleration', 'velocity', 'position', 'control_input'],
+    dt=0.01  # Time step in seconds
+)
+
+# Access the dataset's dataframe
+print(dataset.dataframe.head())
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `dataframe` | `pd.DataFrame` | Your time series data |
+| `features` | `List[str]` | Column names to include in the dataset |
+| `dt` | `float` | Time step between samples in seconds |
+
+## Data Format Requirements
+
+Before training, your data will need to be a time series with:
+
+- **Consistent time step**: The time delta between all rows should be the same (eg. 0.001s)
+- **Numeric columns**: All features must be numeric (Onyx converts to float32 for efficiency)
+- **No missing values**: You should drop rows with NaN values or use interpolation to fill them in 
+
+## Saving Datasets
+
+Save your dataset to the Engine for training:
+
+```python
+# Create an OnyxDataset
+dataset = OnyxDataset(
+    dataframe=df,
+    features=['acceleration', 'velocity', 'position', 'control_input'],
+    dt=0.01  # Time step in seconds
+)
+
+# Save the dataset to the Engine
+onyx.save_dataset(
+    name='my_training_data',
+    dataset=dataset,
+    time_format='s'  # Time is in seconds
+)
+```
+
+After the dataset is uploaded, navigate to the platform and click `"Process for Training"` in the `Data` tab of the dataset. After processing completes, the dataset will be marked as `Active` and ready for training.
+
+
+### Source Dataset Tracking
+
+When creating derived datasets, you can specify source datasets to automatically trace data lineage:
+
+```python
+# Load an existing OnyxDataset from the Engine
+raw_dataset = onyx.load_dataset('raw_sensor_data')
+
+# Process and create a training dataset
+train_df = process_data(raw_dataset.dataframe)
+train_dataset = OnyxDataset(
+    dataframe=train_df,
+    features=['acceleration', 'velocity', 'position', 'control'],
+    dt=0.01
+)
+
+# Save with source dataset tracing
+onyx.save_dataset(
+    name='processed_training_data',
+    dataset=train_dataset,
+    source_datasets=[{'name': 'raw_sensor_data'}],
+    time_format='s'
+)
+```
+
+### Time Format Options
+
+| Format | Description |
+|--------|-------------|
+| `'s'` | Seconds (default) |
+| `'ms'` | Milliseconds |
+| `'us'` | Microseconds |
+| `'ns'` | Nanoseconds |
+| `'datetime'` | Python datetime objects |
+| `'none'` | No time column |
+
+## Loading Datasets
+
+Load datasets from the Engine:
+
+```python
+from onyxengine import Onyx
+
+onyx = Onyx()
+
+# Load the latest version
+dataset = onyx.load_dataset('my_training_data')
+
+# Access the data
+print(dataset.dataframe.head())
+print(f"Features: {dataset.config.features}")
+print(f"Time step: {dataset.config.dt} seconds")
+```
+
+### Loading Specific Versions
+
+Each dataset save creates a new version. Load a specific version by ID:
+
+```python
+# Load a specific version
+dataset = onyx.load_dataset(
+    'my_training_data',
+    version_id='a05fb872-0a7d-4a68-b189-aeece143c7e4'
+)
+```
+
+## Local Caching
+
+Datasets are cached locally after the first download. The SDK automatically:
+
+1. Checks if the local version matches the requested version
+2. Downloads only if the local cache is outdated
+3. Stores files in `~/.onyx/datasets/`
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Training Models" icon="graduation-cap" href="/tutorials/training-models">
+    Use your dataset to train a model
+  </Card>
+  <Card title="Platform Upload" icon="upload" href="/platform/uploading-datasets">
+    Upload datasets via the web interface
+  </Card>
+</CardGroup>

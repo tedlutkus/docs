@@ -26,28 +26,27 @@ Onyx is purpose-built for controls and simulation engineers who need AI models t
 
 - **Predict system dynamics** - Model continuous hardware physics like acceleration/torque
 - **Use hardware sensor data** - Drop in about ~1 hour of time series data (~10Hz+ sampling rate)
-- **Run fast inference** - Deploy for real-time simulation and embedded systems at 1kHz+
+- **Run fast at inference** - Deploy for real-time simulation and embedded systems at 1kHz+, with model file sizes between ~50-500KB
 - **Simulate trajectories** - Our models add a `simulate()` method to industry standard model libraries (eg. PyTorch) for multi-step trajectories with automatic state management
 - **Can be verified** - By training small, fast models, we can verify the model's full input-output behavior before deployment for reliability and safety
 
-## How It Works
+## High-Level Workflow
 
 <Steps>
-  <Step title="Prepare Your Data">
-    Collect timeseries data from your hardware system with states, outputs, and control inputs
+  <Step title="Upload Data">
+    Upload time series data from your hardware that captures the model inputs and outputs.
   </Step>
-  <Step title="Define Features">
-    Specify which features are model outputs and which are inputs, including state relationships
+  <Step title="Train Models">
+    Train or optimize models on your data from Python code or the platform UI. Training jobs will run in parallel on Onyx's training infrastructure.
   </Step>
-  <Step title="Train a Model">
-    Use the cloud platform to train models with GPU acceleration
-  </Step>
-  <Step title="Simulate">
-    Load your trained model and simulate trajectories for control and analysis
+  <Step title="Deploy">
+    Pull your trained models directly from code, each model is automatically traced and versioned for reproducibility.
   </Step>
 </Steps>
 
 ## Quick Example
+
+Here's a short example to show the style/shape of code used with Onyx. We provide full control of all model/training parameters, but maintain well tuned default templates for common use cases.
 
 ```python
 from onyxengine import Onyx
@@ -56,7 +55,7 @@ from onyxengine.modeling import Input, Output, MLPConfig, TrainingConfig
 # Initialize the client (uses ONYX_API_KEY env var)
 onyx = Onyx()
 
-# Define model structure
+# Define model inputs and outputs, including state relationships
 outputs = [Output(name='acceleration')]
 inputs = [
     Input(name='velocity', parent='acceleration', relation='derivative'),
@@ -64,16 +63,46 @@ inputs = [
     Input(name='control_input'),
 ]
 
-# Configure and train
-model_config = MLPConfig(outputs=outputs, inputs=inputs, dt=0.01)
+# Configure AI model and send training job to Onyx infrastructure
+model_config = MLPConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.0025,
+    sequence_length=8,
+    hidden_layers=3,
+    hidden_size=64,
+    activation='relu',
+    dropout=0.2,
+    bias=True
+)
+training_config = TrainingConfig(
+    training_iters=3000,
+    train_batch_size=1024,
+    optimizer=AdamWConfig(lr=3e-4, weight_decay=1e-2),
+    lr_scheduler=CosineDecayWithWarmupConfig(
+        max_lr=3e-4,
+        min_lr=3e-5,
+        warmup_iters=200,
+        decay_iters=1000
+    )
+)
 onyx.train_model(
-    model_name='my_model',
+    model_name='example_model',
     model_config=model_config,
-    dataset_name='my_dataset',
+    dataset_name='example_train_data',
+    training_config=training_config,
 )
 
-# Load and simulate
-model = onyx.load_model('my_model')
+
+
+"""
+~2 minutes later, training completes...
+"""
+# Pull specific version of model directly from code and simulate trajectory
+model = onyx.load_model(
+    'example_model', 
+    version_id='8c41702d-bb9c-4a6a-a212-efa00a2c92e8'
+)
 result = model.simulate(
     x0={'velocity': v0, 'position': p0},
     external_inputs={'control_input': u},
@@ -81,19 +110,8 @@ result = model.simulate(
 )
 ```
 
-## Get Started
+## Next Step: Installation
 
-<CardGroup cols={2}>
-  <Card title="Quickstart" icon="rocket" href="/quickstart">
-    Train your first model in 5 minutes
-  </Card>
-  <Card title="Installation" icon="download" href="/installation">
-    Set up your account and install the SDK
-  </Card>
-  <Card title="Training Tutorial" icon="award" href="/tutorials/training-models">
-    Complete guide to training models
-  </Card>
-  <Card title="API Reference" icon="book" href="/api-reference">
-    Detailed documentation for all functions and classes
-  </Card>
-</CardGroup>
+<Card title="Installation" icon="download" href="/installation" horizontal>
+  Set up your account and install the Python SDK
+</Card>

@@ -1,35 +1,34 @@
 ---
-title: Onyx Engine
-description: Train AI models for hardware simulation and control
+title: Overview
+description: The Onyx Engine is your production-ready AI training workflow to deploy hardware control systems and physics simulation in minutes. Build fast while still using industry standard model libraries like PyTorch.
 ---
-
-Onyx Engine is a Python library and cloud platform for training AI models that simulate and control hardware systems. Build accurate digital twins of your physical systems using your hardware data.
 
 ## Key Features
 
 <CardGroup cols={2}>
-  <Card title="Data-Efficient Training" icon="zap">
-    Train models with less than one hour of data at modest sampling rates (50-400Hz)
+  <Card title="Code-First, Lightweight AI Workflow" icon="code-xml" href="/quickstart">
+    Upload datasets, train AI models, and simulate dynamics directly from code without cloud infrastructure setup.
   </Card>
-  <Card title="Built-in Simulation" icon="play">
-    Models include a `simulate()` method for multi-step trajectory prediction with automatic state management
+  <Card title="Companion Platform UI" icon="network" href="/platform/overview">
+    Our platform is a companion UI that makes it faster to manage and visualize your datasets/models.
   </Card>
-  <Card title="Multiple Architectures" icon="box">
-    Choose from MLP, RNN (LSTM/GRU), or Transformer architectures with a consistent API
+  <Card title="Open-Source Algorithms" icon="box" href="/concepts/model-architectures">
+    Between AI models and controllers, our algorithms are open-source and integrate seamlessly with each other.
   </Card>
-  <Card title="Hyperparameter Optimization" icon="sliders-horizontal">
-    Automatically search for the best model architecture and training parameters
+  <Card title="Automated AI Research" icon="boxes" href="/tutorials/optimizing-models">
+    Optimize across hyperparameters and model architectures in parallel with cloud compute.
   </Card>
 </CardGroup>
 
-## What You Can Build
+## Controls and Simulation Focus
 
-Onyx Engine is designed for controls engineers who need AI models that:
+Onyx is purpose-built for controls and simulation engineers who need AI models that:
 
-- **Predict system dynamics** - Model acceleration, velocity, and position relationships
-- **Handle state-space representations** - Define derivative and delta relationships between features
-- **Run fast inference** - Deploy models optimized for real-time control loops
-- **Simulate trajectories** - Roll out multi-step predictions with automatic state updates
+- **Predict system dynamics** - Model continuous hardware physics like acceleration/torque
+- **Use hardware sensor data** - Drop in about ~1 hour of time series data (~10Hz+ sampling rate)
+- **Run fast inference** - Deploy for real-time simulation and embedded systems at 1kHz+
+- **Simulate trajectories** - Our models add a `simulate()` method to industry standard model libraries (eg. PyTorch) for multi-step trajectories with automatic state management
+- **Can be verified** - By training small, fast models, we can verify the model's full input-output behavior before deployment for reliability and safety
 
 ## How It Works
 

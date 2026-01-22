@@ -36,8 +36,8 @@
             "icon": "rocket",
             "pages": [
               "index",
-              "quickstart",
-              "installation"
+              "installation",
+              "quickstart"
             ]
           },
           {
@@ -128,7 +128,7 @@
         {
           "anchor": "Platform",
           "href": "https://engine.onyx-robotics.com",
-          "icon": "globe"
+          "icon": "network"
         },
         {
           "anchor": "GitHub",

@@ -10,7 +10,6 @@ onyx.train_model(
     dataset_name: str = "",
     dataset_version_id: Optional[str] = None,
     training_config: TrainingConfig = TrainingConfig(),
-    monitor_training: bool = True
 )
 ```
 
@@ -36,10 +35,6 @@ Trains a model on the Onyx Engine using the specified dataset and configuration.
 
 <ParamField path="training_config" type="TrainingConfig" default="TrainingConfig()">
   Configuration for the training process including iterations, batch size, optimizer, etc.
-</ParamField>
-
-<ParamField path="monitor_training" type="bool" default="True">
-  Whether to display training progress in the terminal. Set to `False` for background training.
 </ParamField>
 
 ## Returns
@@ -96,34 +91,7 @@ onyx.train_model(
     model_config=model_config,
     dataset_name='example_train_data',
     training_config=training_config,
-    monitor_training=True
 )
-```
-
-### Background Training
-
-```python
-# Start training without blocking
-onyx.train_model(
-    model_name='background_model',
-    model_config=model_config,
-    dataset_name='example_train_data',
-    training_config=training_config,
-    monitor_training=False  # Returns immediately
-)
-
-# Monitor in the Engine Platform instead
-```
-
-## Training Output
-
-With `monitor_training=True`, you'll see progress like:
-
-```
-Preparing to train model [example_model] using dataset [example_train_data].
-Training started...
-[====================================] 100% | 2000/2000 iters | Loss: 0.0023
-Training complete!
 ```
 
 ## Notes

@@ -3,15 +3,9 @@ title: Installation
 description: Set up your Onyx Engine account and install the Python SDK
 ---
 
-## Prerequisites
-
-- Python 3.9 or higher
-- pip package manager
-- An Onyx Engine account
-
 ## Create an Account
 
-Create your account on the [Engine Platform](https://engine.onyx-robotics.com). New users automatically get a Starter plan with example datasets to explore.
+Create your account by signing up at the [Engine Platform](https://engine.onyx-robotics.com).
 
 ## Get Your API Key
 
@@ -70,10 +64,10 @@ Test your installation by retrieving metadata for the example dataset:
 import json
 from onyxengine import Onyx
 
-# Initialize the client (uses ONYX_API_KEY env var)
+# Initialize the client (defaults to ONYX_API_KEY env var)
 onyx = Onyx()
 
-metadata = onyx.get_object_metadata('example_train_data')
+metadata = onyx.get_object_metadata('example_data')
 print(json.dumps(metadata, indent=2))
 ```
 
@@ -81,13 +75,13 @@ You should see output similar to:
 
 ```json
 {
-  "name": "example_train_data",
+  "name": "example_data",
   "type": "dataset",
-  "created_at": "2025-04-14T15:54:40.516003+00:00",
+  "created_at": "2026-01-22T19:15:29.000521+00:00",
   "config": {
     "type": "dataset",
     "features": [
-      "acceleration_predicted",
+      "acceleration",
       "velocity",
       "position",
       "control_input"
@@ -95,19 +89,22 @@ You should see output similar to:
     "dt": 0.0025
   },
   "status": "active",
-  "id": "52aea6f3-f61e-487b-981b-901e11b4a9c0"
+  "team_id": "90e364ed-8970-42a7-90e7-28c494500db5",
+  "id": "888b0cc4-c313-4c60-8829-07c1963dba76",
+  "user_id": "7c229706-ccc5-481d-9299-9c3a27e89f31",
+  "type_metadata": {
+    "id": "888b0cc4-c313-4c60-8829-07c1963dba76",
+    "num_points": 960801,
+    "memory_bytes": 28633596
+  }
 }
+
 ```
 
 If you see the metadata output, your installation is working correctly.
 
-## Next Steps
+## Next Step: Quickstart
 
-<CardGroup cols={2}>
-  <Card title="Quickstart" icon="rocket" href="/quickstart">
-    Train your first model in 5 minutes
-  </Card>
-  <Card title="Working with Datasets" icon="database" href="/tutorials/working-with-datasets">
-    Learn how to create and manage datasets
-  </Card>
-</CardGroup>
+<Card title="Quickstart" icon="rocket" href="/quickstart" horizontal>
+  Train your first model in 5 minutes
+</Card>

@@ -26,7 +26,7 @@ Onyx is purpose-built for controls and simulation engineers who need AI models t
 
 - **Predict system dynamics** - Model continuous hardware physics like acceleration/torque
 - **Use hardware sensor data** - Drop in about ~1 hour of time series data (~10Hz+ sampling rate)
-- **Run fast at inference** - Deploy for real-time simulation and embedded systems at 1kHz+, with model file sizes between ~50-500KB
+- **Run fast at inference** - Deploy for real-time simulation and embedded systems at 1kHz+, with model file sizes between ~10-500KB
 - **Simulate trajectories** - Our models add a `simulate()` method to industry standard model libraries (eg. PyTorch) for multi-step trajectories with automatic state management
 - **Can be verified** - By training small, fast models, we can verify the model's full input-output behavior before deployment for reliability and safety
 
@@ -50,9 +50,9 @@ Here's a short example to show the style/shape of code used with Onyx. We provid
 
 ```python
 from onyxengine import Onyx
-from onyxengine.modeling import Input, Output, MLPConfig, TrainingConfig
+from onyxengine.modeling import Input, Output, MLPConfig, TrainingConfig, AdamWConfig
 
-# Initialize the client (uses ONYX_API_KEY env var)
+# Initialize the client (defaults to ONYX_API_KEY env var)
 onyx = Onyx()
 
 # Define model inputs and outputs, including state relationships
@@ -78,18 +78,15 @@ model_config = MLPConfig(
 training_config = TrainingConfig(
     training_iters=3000,
     train_batch_size=1024,
+    test_dataset_size=1000,
+    checkpoint_type='single_step',
     optimizer=AdamWConfig(lr=3e-4, weight_decay=1e-2),
-    lr_scheduler=CosineDecayWithWarmupConfig(
-        max_lr=3e-4,
-        min_lr=3e-5,
-        warmup_iters=200,
-        decay_iters=1000
-    )
+    lr_scheduler=None
 )
 onyx.train_model(
     model_name='example_model',
     model_config=model_config,
-    dataset_name='example_train_data',
+    dataset_name='example_data',
     training_config=training_config,
 )
 

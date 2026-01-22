@@ -23,15 +23,15 @@ from onyxengine.modeling import (
     AdamWConfig,
 )
 
-# Initialize the client (uses ONYX_API_KEY env var)
+# Initialize the client (defaults to ONYX_API_KEY env var)
 onyx = Onyx()
 
 # Define model outputs and inputs
 outputs = [
-    Output(name='acceleration_predicted'),
+    Output(name='acceleration'),
 ]
 inputs = [
-    Input(name='velocity', parent='acceleration_predicted', relation='derivative'),
+    Input(name='velocity', parent='acceleration', relation='derivative'),
     Input(name='position', parent='velocity', relation='derivative'),
     Input(name='control_input'),
 ]
@@ -46,37 +46,37 @@ model_config = MLPConfig(
     hidden_size=64,
     activation='relu',
     dropout=0.2,
+    bias=True
 )
 
 # Configure training
 training_config = TrainingConfig(
-    training_iters=2000,
+    training_iters=3000,
     train_batch_size=1024,
+    test_dataset_size=500,
+    checkpoint_type='multi_step',
     optimizer=AdamWConfig(lr=3e-4, weight_decay=1e-2),
+    lr_scheduler=None
 )
 
 # Start training
 onyx.train_model(
     model_name='my_first_model',
     model_config=model_config,
-    dataset_name='example_train_data',
+    dataset_name='example_data',
     training_config=training_config,
-    monitor_training=True
 )
 ```
 
-Run the script to start training. The progress displays in your terminal:
+Run the script to start training. You can view the trained model in the [platform](https://engine.onyx-robotics.com).
 
 ```
-Preparing to train model [my_first_model] using dataset [example_train_data].
-Training started...
-[====================================] 100% | 2000/2000 iters | Loss: 0.0023
-Training complete!
+Preparing to train model [my_first_model] using dataset [example_data].
 ```
 
-## Load and Use the Model
+## Use the Trained Model
 
-Once training completes, load your model and run a simulation:
+Once training completes, you can pull the model from code and simulate a trajectory:
 
 ```python
 import torch
@@ -87,70 +87,84 @@ onyx = Onyx()
 
 # Load the trained model
 model = onyx.load_model('my_first_model')
-
-# Create initial state tensors
 batch_size = 1
-seq_length = model.config.sequence_length
+sequence_length = model.config.sequence_length
+sim_steps = 10
 
 # Initial conditions (velocity and position)
-velocity = torch.zeros(batch_size, seq_length, 1)
-position = torch.zeros(batch_size, seq_length, 1)
+velocity = torch.zeros(batch_size, sequence_length, 1)
+position = torch.zeros(batch_size, sequence_length, 1)
 
-# External inputs for the full simulation
-sim_steps = 100
-control_input = torch.ones(batch_size, seq_length + sim_steps, 1) * 0.5
+# External inputs for the full simulation trajectory (control input)
+control_input = torch.ones(batch_size, sequence_length + sim_steps, 1)
 
-# Run simulation
+# Simulate the trajectory, each timestep will be model.config.dt seconds
 result = model.simulate(
-    x0={'velocity': velocity, 'position': position},
-    external_inputs={'control_input': control_input},
-    sim_steps=sim_steps
+    x0={"velocity": velocity, "position": position},
+    external_inputs={"control_input": control_input},
+    sim_steps=sim_steps,
 )
 
 # Access results
 print("Velocity trajectory shape:", result.inputs['velocity'].shape)
 print("Position trajectory shape:", result.inputs['position'].shape)
-print("Acceleration output shape:", result.outputs['acceleration_predicted'].shape)
+print("Acceleration output shape:", result.outputs['acceleration'].shape)
+
+# View the model outputs
+print("Acceleration output:", result.outputs['acceleration'])
 ```
 
 ## Understanding the Code
 
 ### Model Inputs and Outputs
 
-The key to Onyx models is defining the relationships between features:
+Onyx comes with a set of built-in tools to help create and manage model features:
 
-- **`Output`**: Features the model predicts (here, acceleration)
-- **`Input`**: Features fed into the model, including:
-  - **States**: Inputs derived from outputs using `parent` and `relation`
-  - **External inputs**: Known values like control signals
+- **`Output`**: Features the model predicts (acceleration)
+- **`Input`**: Features fed into the model (velocity, position, control_input)
 
-The `relation` parameter defines how states update during simulation:
+The `parent` and `relation` parameters of the `Input` and `Output` classes define how features update in the `simulate()` method:
 - `'derivative'`: The parent is the time derivative of this feature
-- `'delta'`: The parent is the change per timestep
-- `'equal'`: The parent equals this feature
+- `'delta'`: The parent is the delta change per timestep
+- `'equal'`: The parent is equal to this feature (feed output straight back in as input)
+
+In this example, we chained `acceleration` -> `velocity` -> `position`. 
+
+You can also always use the underlying PyTorch model as is without calling `simulate()`:
+
+```python
+# Call the PyTorch model prediction directly
+test_input = torch.ones(batch_size, sequence_length, num_features)
+with torch.no_grad():
+    test_output = model(test_input)
+print(test_output)
+```
 
 ### Simulation
 
 The `simulate()` method handles multi-step prediction:
 
 1. Takes initial state values in `x0`
-2. Takes external inputs for the full trajectory in `external_inputs`
-3. Automatically integrates states using the defined relations
+2. Takes the full trajectory for non-derived features in `external_inputs`
+3. Automatically integrates states using the defined relations to roll out the trajectory
 4. Returns a `SimulationResult` with trajectory data for all features
+
+Note that simulating with integration schemes is a serial operation, since each timestep depends on the previous one.
+For applications that can leverage parallel GPU acceleration, you may want to avoid features that require step-wise integration (no `parent` and `relation`).
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Training Tutorial" icon="graduation-cap" href="/tutorials/training-models">
+  <Card title="Working with Datasets" icon="database" href="/tutorials/working-with-datasets">
+    Create, save, and load datasets for model training
+  </Card>
+  <Card title="Training Models" icon="activity" href="/tutorials/training-models">
     Deep dive into model configuration and training options
   </Card>
-  <Card title="Simulation Tutorial" icon="play" href="/tutorials/simulating-models">
+  <Card title="Optimizing Models" icon="boxes" href="/tutorials/optimizing-models">
+    Automatically search for the best model architecture and hyperparameters
+  </Card>
+  <Card title="Simulating Models" icon="trending-up-down" href="/tutorials/simulating-models">
     Learn advanced simulation techniques
-  </Card>
-  <Card title="Feature Engineering" icon="gear" href="/concepts/feature-engineering">
-    Understand Input/Output relationships
-  </Card>
-  <Card title="Platform Overview" icon="browser" href="/platform/overview">
-    Monitor training and view results in the web UI
   </Card>
 </CardGroup>

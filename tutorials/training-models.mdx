@@ -17,7 +17,6 @@ from onyxengine.modeling import (
     MLPConfig,
     TrainingConfig,
     AdamWConfig,
-    CosineDecayWithWarmupConfig
 )
 
 # Initialize the client
@@ -48,17 +47,12 @@ model_config = MLPConfig(
 
 # Configure training
 training_config = TrainingConfig(
-    training_iters=2000,
+    training_iters=3000,
     train_batch_size=1024,
     test_dataset_size=500,
-    checkpoint_type='single_step',
+    checkpoint_type='multi_step',
     optimizer=AdamWConfig(lr=3e-4, weight_decay=1e-2),
-    lr_scheduler=CosineDecayWithWarmupConfig(
-        max_lr=3e-4,
-        min_lr=3e-5,
-        warmup_iters=200,
-        decay_iters=1000
-    )
+    lr_scheduler=None
 )
 
 # Start training
@@ -67,7 +61,6 @@ onyx.train_model(
     model_config=model_config,
     dataset_name='example_train_data',
     training_config=training_config,
-    monitor_training=True
 )
 ```
 
@@ -275,11 +268,10 @@ onyx.train_model(
     dataset_name='my_dataset',       # Dataset to train on
     dataset_version_id=None,         # Optional: specific dataset version
     training_config=training_config,
-    monitor_training=True            # Show progress in terminal
 )
 ```
 
-With `monitor_training=True`, you'll see real-time progress. You can also monitor via the [Engine Platform](https://engine.onyx-robotics.com) for detailed loss curves and predictions.
+Monitor training progress via the [Engine Platform](https://engine.onyx-robotics.com) for detailed loss curves and predictions.
 
 ## After Training
 

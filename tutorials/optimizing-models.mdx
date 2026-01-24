@@ -3,9 +3,13 @@ title: Optimizing Models
 description: Automatically search for the best model architecture and hyperparameters
 ---
 
-Model optimization in Onyx Engine lets you automatically search across model architectures, hyperparameters, and training configurations to find the best model for your system.
+Before optimizing models in Onyx Engine, start with the [Training Models](/tutorials/training-models) tutorial to learn about model inputs/outputs, configurations, and loading trained models.
+
+Optimizing models is no different than training individual models, but it allows you to train many models at once, in parallel, on Onyx's cloud training infrastructure. 
 
 ## Complete Optimization Example
+
+Here's a full optimization script that you can use as a starting point:
 
 ```python
 from onyxengine import Onyx
@@ -24,76 +28,94 @@ from onyxengine.modeling import (
 # Initialize the client
 onyx = Onyx()
 
-# Define model inputs/outputs
+# Define model outputs and inputs
 outputs = [
-    Output(name='acceleration_predicted'),
+    Output(name='acceleration'),
 ]
 inputs = [
-    Input(name='velocity', parent='acceleration_predicted', relation='derivative'),
+    Input(name='velocity', parent='acceleration', relation='derivative'),
     Input(name='position', parent='velocity', relation='derivative'),
     Input(name='control_input'),
 ]
 
-# Model architecture search spaces
+# Model optimization configs
 mlp_opt = MLPOptConfig(
     outputs=outputs,
     inputs=inputs,
     dt=0.0025,
-    sequence_length={"select": [1, 2, 4, 8, 10]},
-    hidden_layers={"range": [2, 4, 1]},
+    sequence_length={"range": [1, 10, 1]},
+    hidden_layers={"select": [2, 3, 4, 5]},
     hidden_size={"select": [32, 64, 128]},
-    activation={"select": ['relu', 'tanh']},
-    dropout={"range": [0.0, 0.3, 0.1]},
+    activation={"select": ['relu', 'gelu', 'tanh']},
+    dropout={"range": [0.0, 0.2, 0.1]},
     bias=True
 )
-
 rnn_opt = RNNOptConfig(
     outputs=outputs,
     inputs=inputs,
     dt=0.0025,
-    rnn_type={"select": ['LSTM', 'GRU']},
-    sequence_length={"select": [4, 8, 12]},
-    hidden_layers={"range": [2, 4, 1]},
+    rnn_type={"select": ['LSTM']},
+    sequence_length={"range": [10, 30, 2]},
+    hidden_layers={"select": [2, 3, 4, 5]},
     hidden_size={"select": [32, 64, 128]},
-    dropout={"range": [0.0, 0.3, 0.1]},
+    dropout={"range": [0.0, 0.2, 0.1]},
     bias=True
 )
-
-# Optimizer search spaces
+transformer_opt = TransformerOptConfig(
+    outputs=outputs,
+    inputs=inputs,
+    dt=0.0025,
+    sequence_length={"range": [10, 40, 2]},
+    n_layer={"range": [2, 4, 1]},
+    n_head={"range": [2, 8, 2]},
+    n_embd={"select": [24, 32, 64, 128]},
+    dropout={"range": [0.0, 0.2, 0.1]},
+    bias=True
+)
+    
+# Optimizer config
 adamw_opt = AdamWOptConfig(
-    lr={"select": [1e-4, 3e-4, 1e-3]},
-    weight_decay={"select": [1e-3, 1e-2]}
+    lr={"select": [5e-5, 1e-4, 3e-4, 5e-4, 8e-4]},
+    weight_decay={"select": [1e-4, 1e-3, 1e-2]}
 )
 
-# Learning rate scheduler search spaces
-lr_scheduler_opt = CosineDecayWithWarmupOptConfig(
-    max_lr={"select": [3e-4, 1e-3]},
-    min_lr={"select": [1e-5, 3e-5]},
-    warmup_iters={"select": [100, 200]},
-    decay_iters={"select": [1000, 2000]}
+# Learning rate scheduler config
+cos_decay_opt = CosineDecayWithWarmupOptConfig(
+    max_lr={"select": [8e-5, 1e-4, 3e-4, 8e-4, 1e-3, 5e-3]},
+    min_lr={"select": [1e-6, 5e-6, 1e-5, 3e-5, 5e-5]},
+    warmup_iters={"select": [50, 100, 200, 400, 800]},
+    decay_iters={"select": [500, 1000, 2000, 4000, 8000]}
 )
 
-# Optimization configuration
+# Optimization config
 opt_config = OptimizationConfig(
-    training_iters=2000,
+    training_iters=3000,
     train_batch_size=1024,
     test_dataset_size=500,
-    checkpoint_type='single_step',
-    opt_models=[mlp_opt, rnn_opt],
+    checkpoint_type='multi_step',
+    opt_models=[mlp_opt, rnn_opt, transformer_opt],
     opt_optimizers=[adamw_opt],
-    opt_lr_schedulers=[None, lr_scheduler_opt],
-    num_trials=10
+    opt_lr_schedulers=[cos_decay_opt],
+    num_trials=20
 )
 
-# Run optimization
+# Execute model optimization
 onyx.optimize_model(
-    model_name='optimized_model',
-    dataset_name='example_train_data',
+    model_name='example_model',
+    dataset_name='example_data',
     optimization_config=opt_config,
 )
 ```
 
 ## Defining Search Spaces
+
+Search spaces dictate the possible values that a given hyperparameter can be given for an individual model optimization trial. There are three ways to define a search space:
+
+| Type | Syntax | Description |
+|------|--------|-------------|
+| `Fixed` | `param=2` | Lock a parameter to a single value |
+| `Select` | `param={"select": [2, 4, 6, 8]}` | Choose from a discrete list of values |
+| `Range` | `param={"range": [2, 5, 1]}` | Choose from a range of `[start, end, step]` |
 
 ### Fixed Values
 
@@ -102,8 +124,8 @@ Lock a parameter to a single value:
 ```python
 mlp_opt = MLPOptConfig(
     hidden_layers=3,      # Always use 3 layers
-    activation='relu',    # Always use ReLU
-    bias=True,           # Always include bias
+    activation='relu',    # Always use relu
+    bias=True,            # Always set bias to True
     ...
 )
 ```
@@ -114,9 +136,9 @@ Choose from a list of values:
 
 ```python
 mlp_opt = MLPOptConfig(
-    hidden_layers={"select": [2, 3, 4]},
-    hidden_size={"select": [32, 64, 128, 256]},
-    activation={"select": ['relu', 'gelu', 'tanh']},
+    hidden_layers={"select": [2, 3, 4]}, # Choose from 2, 3, or 4 layers
+    hidden_size={"select": [32, 64, 128, 256]}, # Choose from 32, 64, 128, or 256 hidden units
+    activation={"select": ['relu', 'gelu', 'tanh']}, # Choose from relu, gelu, or tanh
     ...
 )
 ```
@@ -127,8 +149,8 @@ Specify a range with `[start, end, step]`:
 
 ```python
 mlp_opt = MLPOptConfig(
-    hidden_layers={"range": [2, 5, 1]},     # 2, 3, 4, or 5
-    dropout={"range": [0.0, 0.4, 0.1]},     # 0.0, 0.1, 0.2, 0.3, or 0.4
+    hidden_layers={"range": [2, 5, 1]},     # Choose from 2, 3, 4, or 5 layers
+    dropout={"range": [0.0, 0.4, 0.1]},     # Choose from 0.0, 0.1, 0.2, 0.3, or 0.4 dropout rate
     ...
 )
 ```
@@ -139,13 +161,11 @@ Range is only supported for numeric parameters. Use `select` for strings and boo
 
 ## Model Optimization Configs
 
-Model optimization configs (eg. [`MLPOptConfig`](/api-reference/mlp-config#mlpoptconfig), [`RNNOptConfig`](/api-reference/rnn-config#rnnoptconfig), [`TransformerOptConfig`](/api-reference/transformer-config#transformeroptconfig)) define search spaces for hyperparameter optimization.
+Model optimization configs (eg. [`MLPOptConfig`](/api-reference/mlp-config#mlpoptconfig), [`RNNOptConfig`](/api-reference/rnn-config#rnnoptconfig), [`TransformerOptConfig`](/api-reference/transformer-config#transformeroptconfig)) are identical to their regular model config counterparts, but allow for parameter search spaces. 
 
-The following parameters are common to all model optimization configs:
-- `outputs`: List of model outputs
-- `inputs`: List of model inputs
-- `dt`: Time step for model (does not need to match the dataset time step)
-- `sequence_length`: Search space for the number of previous time steps the model sees as a history window
+They use the same model `inputs` and `outputs` as regular model configs, which makes it easy to jump between training individual models and optimizing models — see the [Training Models](/tutorials/training-models#defining-model-inputs-and-outputs) tutorial for details on defining inputs/outputs.
+
+After optimization, you will still load the resulting models using their regular model configs, `Opt` configs are only used to configure the optimization.
 
 ### MLP ([`MLPOptConfig`](/api-reference/mlp-config#mlpoptconfig))
 
@@ -158,12 +178,12 @@ mlp_opt = MLPOptConfig(
     outputs=outputs,
     inputs=inputs,
     dt=0.0025,
-    sequence_length={"select": [1, 2, 4, 8]},   # Search space for sequence length
-    hidden_layers={"range": [2, 5, 1]},         # Search space: 2, 3, 4, or 5 layers
-    hidden_size={"select": [32, 64, 128]},      # Search space for neurons per layer
-    activation={"select": ['relu', 'gelu', 'tanh']},  # Search space for activation function
-    dropout={"range": [0.0, 0.4, 0.1]},         # Search space: 0.0, 0.1, 0.2, 0.3, or 0.4
-    bias=True                                   # Fixed: always include bias terms
+    sequence_length={"range": [1, 10, 1]},
+    hidden_layers={"select": [2, 3, 4, 5]},
+    hidden_size={"select": [32, 64, 128]},
+    activation={"select": ['relu', 'gelu', 'tanh']},
+    dropout={"range": [0.0, 0.2, 0.1]},
+    bias=True
 )
 ```
 
@@ -178,12 +198,12 @@ rnn_opt = RNNOptConfig(
     outputs=outputs,
     inputs=inputs,
     dt=0.0025,
-    rnn_type={"select": ['RNN', 'LSTM', 'GRU']},  # Search space for RNN type
-    sequence_length={"select": [4, 8, 12, 16]},   # Search space for sequence length
-    hidden_layers={"range": [2, 4, 1]},           # Search space: 2, 3, or 4 RNN layers
-    hidden_size={"select": [32, 64, 128]},        # Search space for hidden units per layer
-    dropout={"range": [0.0, 0.4, 0.1]},           # Search space: 0.0, 0.1, 0.2, 0.3, or 0.4
-    bias=True                                     # Fixed: always include bias terms
+    rnn_type={"select": ['LSTM']},
+    sequence_length={"range": [10, 30, 2]},
+    hidden_layers={"select": [2, 3, 4, 5]},
+    hidden_size={"select": [32, 64, 128]},
+    dropout={"range": [0.0, 0.2, 0.1]},
+    bias=True
 )
 ```
 
@@ -198,68 +218,68 @@ transformer_opt = TransformerOptConfig(
     outputs=outputs,
     inputs=inputs,
     dt=0.0025,
-    sequence_length={"select": [4, 8, 12]},    # Search space for sequence length
-    n_layer={"range": [2, 4, 1]},              # Search space: 2, 3, or 4 transformer layers
-    n_head={"select": [2, 4, 8]},              # Search space for attention heads
-    n_embd={"select": [32, 64, 128]},          # Search space for embedding dimension (must be divisible by n_head)
-    dropout={"range": [0.0, 0.4, 0.1]},        # Search space: 0.0, 0.1, 0.2, 0.3, or 0.4
-    bias=True                                  # Fixed: always include bias terms
+    sequence_length={"range": [10, 40, 2]},
+    n_layer={"range": [2, 4, 1]},
+    n_head={"range": [2, 8, 2]},
+    n_embd={"select": [24, 32, 64, 128]},
+    dropout={"range": [0.0, 0.2, 0.1]},
+    bias=True
 )
 ```
 
 ## Optimizer Configs
 
-**[AdamW](/api-reference/optimizer-configs#adamwoptconfig)** (recommended for most cases):
+**AdamW ([`AdamWOptConfig`](/api-reference/optimizer-configs#adamwoptconfig))** (recommended for most cases):
 
 ```python
 from onyxengine.modeling import AdamWOptConfig
 
 adamw_opt = AdamWOptConfig(
-    lr={"select": [1e-5, 1e-4, 3e-4, 1e-3]},        # Search space for learning rate
-    weight_decay={"select": [1e-4, 1e-3, 1e-2]}     # Search space for L2 regularization
+    lr={"select": [5e-5, 1e-4, 3e-4, 5e-4, 8e-4]},
+    weight_decay={"select": [1e-4, 1e-3, 1e-2]}
 )
 ```
 
-**[SGD](/api-reference/optimizer-configs#sgdoptconfig)** (for fine-tuning or specific cases):
+**SGD ([`SGDOptConfig`](/api-reference/optimizer-configs#sgdoptconfig))**:
 
 ```python
 from onyxengine.modeling import SGDOptConfig
 
 sgd_opt = SGDOptConfig(
-    lr={"select": [1e-4, 1e-3, 1e-2]},             # Search space for learning rate
-    weight_decay={"select": [1e-4, 1e-3]},         # Search space for L2 regularization
-    momentum={"select": [0.9, 0.95, 0.99]}         # Search space for momentum factor
+    lr={"select": [5e-5, 1e-4, 3e-4, 5e-4, 8e-4]},
+    weight_decay={"select": [1e-4, 1e-3, 1e-2]},
+    momentum={"select": [0.9, 0.95, 0.99]}
 )
 ```
 
 ## Learning Rate Scheduler Configs
 
-**[Cosine Decay with Warmup](/api-reference/optimizer-configs#cosinedecaywithwarmupoptconfig)**:
+**Cosine Decay with Warmup ([`CosineDecayWithWarmupOptConfig`](/api-reference/optimizer-configs#cosinedecaywithwarmupoptconfig))**:
 
 ```python
 from onyxengine.modeling import CosineDecayWithWarmupOptConfig
 
 cos_decay_opt = CosineDecayWithWarmupOptConfig(
-    max_lr={"select": [3e-4, 1e-3, 3e-3]},        # Search space for peak learning rate (after warmup)
-    min_lr={"select": [1e-5, 3e-5, 1e-4]},        # Search space for final learning rate (after decay)
-    warmup_iters={"select": [100, 200, 400]},     # Search space for warmup period iterations
-    decay_iters={"select": [1000, 2000, 4000]}    # Search space for cosine decay period iterations
+    max_lr={"select": [8e-5, 1e-4, 3e-4, 8e-4, 1e-3, 5e-3]},
+    min_lr={"select": [1e-6, 5e-6, 1e-5, 3e-5, 5e-5]},
+    warmup_iters={"select": [50, 100, 200, 400, 800]},
+    decay_iters={"select": [500, 1000, 2000, 4000, 8000]}
 )
 ```
 
-**[Cosine Annealing with Warm Restarts](/api-reference/optimizer-configs#cosineannealingwarmrestartsoptconfig)**:
+**Cosine Annealing with Warm Restarts ([`CosineAnnealingWarmRestartsOptConfig`](/api-reference/optimizer-configs#cosineannealingwarmrestartsoptconfig))**:
 
 ```python
 from onyxengine.modeling import CosineAnnealingWarmRestartsOptConfig
 
 cos_anneal_opt = CosineAnnealingWarmRestartsOptConfig(
-    T_0={"select": [500, 1000, 2000]},            # Search space for initial cycle length
-    T_mult={"select": [1, 2]},                    # Search space for cycle length multiplier
-    eta_min={"select": [1e-6, 1e-5, 1e-4]}        # Search space for minimum learning rate
+    T_0={"select": [500, 1000, 2000]},
+    T_mult={"select": [1, 2]},
+    eta_min={"select": [1e-6, 1e-5, 1e-4]}
 )
 ```
 
-### No Scheduler
+**No Scheduler**:
 
 Include `None` in your scheduler list to try training without a scheduler:
 
@@ -272,99 +292,68 @@ opt_config = OptimizationConfig(
 
 ## OptimizationConfig
 
-See [`OptimizationConfig`](/api-reference/optimization-config) for the full API.
+The [`OptimizationConfig`](/api-reference/optimization-config) is used to bring together your search spaces for hyperparameters.
+
+Note that for models, optimizers, and learning rate schedulers, you pass in lists of `Opt` configs. This is effectively a high-level `Select` search space, so you can optimize across different model architectures, optimizers, and learning rate schedulers.
+
+While you have lots of flexibility in defining search spaces, we recommend starting with a baseline like the example at the top of this page and then narrowing down to the most promising configurations.
 
 ```python
 from onyxengine.modeling import OptimizationConfig
 
 opt_config = OptimizationConfig(
     # Training parameters (fixed for all trials)
-    training_iters=2000,                          # Total training iterations per trial
-    train_batch_size=1024,                        # Batch size for all trials
-    train_val_split_ratio=0.9,                    # Train/validation split ratio
-    test_dataset_size=500,                        # Samples for test visualization
-    checkpoint_type='single_step',                # Training checkpoint type (see below)
+    training_iters=3000,                 # Total training iterations per trial
+    train_batch_size=1024,               # Batch size for all trials
+    test_dataset_size=500,               # Samples for test visualization
+    checkpoint_type='multi_step',        # Training checkpoint type
 
     # Search spaces
-    opt_models=[mlp_opt, rnn_opt, transformer_opt],  # Model architecture search spaces
-    opt_optimizers=[adamw_opt, sgd_opt],             # Optimizer search spaces
-    opt_lr_schedulers=[None, cos_decay_opt],         # Scheduler search spaces (include None for no scheduler)
+    opt_models=[mlp_opt, rnn_opt, transformer_opt],           # Model architecture search spaces
+    opt_optimizers=[adamw_opt, sgd_opt],                      # Optimizer search spaces
+    opt_lr_schedulers=[None, cos_decay_opt, cos_anneal_opt],  # Scheduler search spaces (include None for no scheduler)
 
     # Number of trials
-    num_trials=20                                  # Total number of configurations to try
+    num_trials=20                        # Total number of configurations to sample
 )
 ```
-
-### Checkpoint Types
-
-| Type | Description | Use Case |
-|------|-------------|----------|
-| `'single_step'` | Save best training checkpoint for next-step prediction | Deploying with `model(input)` |
-| `'multi_step'` | Save best training checkpoint for trajectory simulation | Deploying with `model.simulate(input)` |
-
-<Tip>
-Start with `single_step` to quickly filter bad configurations, then run a focused `multi_step` optimization on promising architectures.
-</Tip>
 
 ## Running Optimization
 
 ```python
 onyx.optimize_model(
-    model_name='optimized_model',
-    dataset_name='example_train_data',
-    dataset_version_id=None,  # Optional: specific dataset version
+    model_name='optimized_model',         # Name for each of the trained models
+    dataset_name='example_data',          # Name of the dataset to optimize on
+    dataset_version_id=None,              # Optional: specific dataset version
     optimization_config=opt_config,
 )
 ```
 
-Each trial creates a new version of the model. Monitor progress in the [Engine Platform](https://engine.onyx-robotics.com).
+Each trial creates an individual version of the model. Monitor progress in the [Engine Platform](https://engine.onyx-robotics.com).
 
 ## Loading Optimized Models
 
-After optimization completes, load the best model or any specific trial:
+As optimization trials complete, each trial will result in a new trained model version. 
+
+You can load these model versions the same way you load individually trained models - see the [Training Models](/tutorials/training-models#after-training) tutorial for more details on loading models, including offline mode and local caching.
 
 ```python
 from onyxengine import Onyx
 
 onyx = Onyx()
 
-# Load the latest (best) version
-best_model = onyx.load_model('optimized_model')
+# Load the latest model version
+model = onyx.load_model('optimized_model')
 
-# Load a specific trial
-trial_model = onyx.load_model('optimized_model', version_id='dcfec841-1748-47e2-b6c7-3c821cc69b4a')
+# Load a specific model version
+model = onyx.load_model('optimized_model', version_id='dcfec841-1748-47e2-b6c7-3c821cc69b4a')
 
 # Check what configuration was used
-print(trial_model.config)
+print(model.config.model_dump_json(indent=2))
 ```
-
-## Best Practices
-
-<AccordionGroup>
-  <Accordion title="Start with defaults">
-    The default search spaces in OptConfig classes are good starting points. Narrow them down based on initial results.
-  </Accordion>
-
-  <Accordion title="Balance breadth and depth">
-    More trials with fewer options per parameter often works better than fewer trials with huge search spaces.
-  </Accordion>
-
-  <Accordion title="Use single_step first">
-    Start with `checkpoint_type='single_step'` to quickly filter bad configurations, then run a focused `multi_step` optimization on promising architectures.
-  </Accordion>
-
-  <Accordion title="Monitor in the platform">
-    Use the Engine Platform to compare trial results, view loss curves, and identify which hyperparameters matter most.
-  </Accordion>
-</AccordionGroup>
 
 ## Next Steps
 
-<CardGroup cols={2}>
-  <Card title="Simulating Models" icon="play" href="/tutorials/simulating-models">
-    Deploy your optimized model for simulation
-  </Card>
-  <Card title="Viewing Results" icon="trending-up" href="/platform/viewing-results">
-    Analyze optimization results in the platform
-  </Card>
-</CardGroup>
+<Card title="Simulating Models" icon="trending-up-down" href="/tutorials/simulating-models" horizontal>
+    Deploy your optimized models for simulation
+</Card>

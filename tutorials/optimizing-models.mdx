@@ -139,95 +139,123 @@ Range is only supported for numeric parameters. Use `select` for strings and boo
 
 ## Model Optimization Configs
 
-### MLPOptConfig
+Model optimization configs (eg. [`MLPOptConfig`](/api-reference/mlp-config#mlpoptconfig), [`RNNOptConfig`](/api-reference/rnn-config#rnnoptconfig), [`TransformerOptConfig`](/api-reference/transformer-config#transformeroptconfig)) define search spaces for hyperparameter optimization.
+
+The following parameters are common to all model optimization configs:
+- `outputs`: List of model outputs
+- `inputs`: List of model inputs
+- `dt`: Time step for model (does not need to match the dataset time step)
+- `sequence_length`: Search space for the number of previous time steps the model sees as a history window
+
+### MLP ([`MLPOptConfig`](/api-reference/mlp-config#mlpoptconfig))
+
+Best for systems with relatively simple dynamics or for fast inference:
 
 ```python
+from onyxengine.modeling import MLPOptConfig
+
 mlp_opt = MLPOptConfig(
     outputs=outputs,
     inputs=inputs,
     dt=0.0025,
-    sequence_length={"select": [1, 2, 4, 8]},
-    hidden_layers={"range": [2, 5, 1]},
-    hidden_size={"select": [32, 64, 128]},
-    activation={"select": ['relu', 'gelu', 'tanh']},
-    dropout={"range": [0.0, 0.4, 0.1]},
-    bias=True
+    sequence_length={"select": [1, 2, 4, 8]},   # Search space for sequence length
+    hidden_layers={"range": [2, 5, 1]},         # Search space: 2, 3, 4, or 5 layers
+    hidden_size={"select": [32, 64, 128]},      # Search space for neurons per layer
+    activation={"select": ['relu', 'gelu', 'tanh']},  # Search space for activation function
+    dropout={"range": [0.0, 0.4, 0.1]},         # Search space: 0.0, 0.1, 0.2, 0.3, or 0.4
+    bias=True                                   # Fixed: always include bias terms
 )
 ```
 
-### RNNOptConfig
+### RNN ([`RNNOptConfig`](/api-reference/rnn-config#rnnoptconfig))
+
+Better for systems with complex temporal dependencies:
 
 ```python
+from onyxengine.modeling import RNNOptConfig
+
 rnn_opt = RNNOptConfig(
     outputs=outputs,
     inputs=inputs,
     dt=0.0025,
-    rnn_type={"select": ['RNN', 'LSTM', 'GRU']},
-    sequence_length={"select": [4, 8, 12, 16]},
-    hidden_layers={"range": [2, 4, 1]},
-    hidden_size={"select": [32, 64, 128]},
-    dropout={"range": [0.0, 0.4, 0.1]},
-    bias=True
+    rnn_type={"select": ['RNN', 'LSTM', 'GRU']},  # Search space for RNN type
+    sequence_length={"select": [4, 8, 12, 16]},   # Search space for sequence length
+    hidden_layers={"range": [2, 4, 1]},           # Search space: 2, 3, or 4 RNN layers
+    hidden_size={"select": [32, 64, 128]},        # Search space for hidden units per layer
+    dropout={"range": [0.0, 0.4, 0.1]},           # Search space: 0.0, 0.1, 0.2, 0.3, or 0.4
+    bias=True                                     # Fixed: always include bias terms
 )
 ```
 
-### TransformerOptConfig
+### Transformer ([`TransformerOptConfig`](/api-reference/transformer-config#transformeroptconfig))
+
+Powerful for capturing long-range dependencies:
 
 ```python
+from onyxengine.modeling import TransformerOptConfig
+
 transformer_opt = TransformerOptConfig(
     outputs=outputs,
     inputs=inputs,
     dt=0.0025,
-    sequence_length={"select": [4, 8, 12]},
-    n_layer={"range": [2, 4, 1]},
-    n_head={"select": [2, 4, 8]},
-    n_embd={"select": [32, 64, 128]},
-    dropout={"range": [0.0, 0.4, 0.1]},
-    bias=True
+    sequence_length={"select": [4, 8, 12]},    # Search space for sequence length
+    n_layer={"range": [2, 4, 1]},              # Search space: 2, 3, or 4 transformer layers
+    n_head={"select": [2, 4, 8]},              # Search space for attention heads
+    n_embd={"select": [32, 64, 128]},          # Search space for embedding dimension (must be divisible by n_head)
+    dropout={"range": [0.0, 0.4, 0.1]},        # Search space: 0.0, 0.1, 0.2, 0.3, or 0.4
+    bias=True                                  # Fixed: always include bias terms
 )
 ```
 
 ## Optimizer Configs
 
-### AdamWOptConfig
+**[AdamW](/api-reference/optimizer-configs#adamwoptconfig)** (recommended for most cases):
 
 ```python
+from onyxengine.modeling import AdamWOptConfig
+
 adamw_opt = AdamWOptConfig(
-    lr={"select": [1e-5, 1e-4, 3e-4, 1e-3]},
-    weight_decay={"select": [1e-4, 1e-3, 1e-2]}
+    lr={"select": [1e-5, 1e-4, 3e-4, 1e-3]},        # Search space for learning rate
+    weight_decay={"select": [1e-4, 1e-3, 1e-2]}     # Search space for L2 regularization
 )
 ```
 
-### SGDOptConfig
+**[SGD](/api-reference/optimizer-configs#sgdoptconfig)** (for fine-tuning or specific cases):
 
 ```python
+from onyxengine.modeling import SGDOptConfig
+
 sgd_opt = SGDOptConfig(
-    lr={"select": [1e-4, 1e-3, 1e-2]},
-    weight_decay={"select": [1e-4, 1e-3]},
-    momentum={"select": [0.9, 0.95, 0.99]}
+    lr={"select": [1e-4, 1e-3, 1e-2]},             # Search space for learning rate
+    weight_decay={"select": [1e-4, 1e-3]},         # Search space for L2 regularization
+    momentum={"select": [0.9, 0.95, 0.99]}         # Search space for momentum factor
 )
 ```
 
 ## Learning Rate Scheduler Configs
 
-### CosineDecayWithWarmupOptConfig
+**[Cosine Decay with Warmup](/api-reference/optimizer-configs#cosinedecaywithwarmupoptconfig)**:
 
 ```python
+from onyxengine.modeling import CosineDecayWithWarmupOptConfig
+
 cos_decay_opt = CosineDecayWithWarmupOptConfig(
-    max_lr={"select": [3e-4, 1e-3, 3e-3]},
-    min_lr={"select": [1e-5, 3e-5, 1e-4]},
-    warmup_iters={"select": [100, 200, 400]},
-    decay_iters={"select": [1000, 2000, 4000]}
+    max_lr={"select": [3e-4, 1e-3, 3e-3]},        # Search space for peak learning rate (after warmup)
+    min_lr={"select": [1e-5, 3e-5, 1e-4]},        # Search space for final learning rate (after decay)
+    warmup_iters={"select": [100, 200, 400]},     # Search space for warmup period iterations
+    decay_iters={"select": [1000, 2000, 4000]}    # Search space for cosine decay period iterations
 )
 ```
 
-### CosineAnnealingWarmRestartsOptConfig
+**[Cosine Annealing with Warm Restarts](/api-reference/optimizer-configs#cosineannealingwarmrestartsoptconfig)**:
 
 ```python
+from onyxengine.modeling import CosineAnnealingWarmRestartsOptConfig
+
 cos_anneal_opt = CosineAnnealingWarmRestartsOptConfig(
-    T_0={"select": [500, 1000, 2000]},
-    T_mult={"select": [1, 2]},
-    eta_min={"select": [1e-6, 1e-5, 1e-4]}
+    T_0={"select": [500, 1000, 2000]},            # Search space for initial cycle length
+    T_mult={"select": [1, 2]},                    # Search space for cycle length multiplier
+    eta_min={"select": [1e-6, 1e-5, 1e-4]}        # Search space for minimum learning rate
 )
 ```
 
@@ -244,31 +272,39 @@ opt_config = OptimizationConfig(
 
 ## OptimizationConfig
 
+See [`OptimizationConfig`](/api-reference/optimization-config) for the full API.
+
 ```python
+from onyxengine.modeling import OptimizationConfig
+
 opt_config = OptimizationConfig(
     # Training parameters (fixed for all trials)
-    training_iters=2000,
-    train_batch_size=1024,
-    train_val_split_ratio=0.9,
-    test_dataset_size=500,
-    checkpoint_type='single_step',
+    training_iters=2000,                          # Total training iterations per trial
+    train_batch_size=1024,                        # Batch size for all trials
+    train_val_split_ratio=0.9,                    # Train/validation split ratio
+    test_dataset_size=500,                        # Samples for test visualization
+    checkpoint_type='single_step',                # Training checkpoint type (see below)
 
     # Search spaces
-    opt_models=[mlp_opt, rnn_opt, transformer_opt],
-    opt_optimizers=[adamw_opt, sgd_opt],
-    opt_lr_schedulers=[None, cos_decay_opt],
+    opt_models=[mlp_opt, rnn_opt, transformer_opt],  # Model architecture search spaces
+    opt_optimizers=[adamw_opt, sgd_opt],             # Optimizer search spaces
+    opt_lr_schedulers=[None, cos_decay_opt],         # Scheduler search spaces (include None for no scheduler)
 
     # Number of trials
-    num_trials=20
+    num_trials=20                                  # Total number of configurations to try
 )
 ```
 
-| Parameter | Description |
-|-----------|-------------|
-| `opt_models` | List of model configs to search |
-| `opt_optimizers` | List of optimizer configs to search |
-| `opt_lr_schedulers` | List of scheduler configs (include `None` for no scheduler) |
-| `num_trials` | Total number of configurations to try |
+### Checkpoint Types
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `'single_step'` | Save best training checkpoint for next-step prediction | Deploying with `model(input)` |
+| `'multi_step'` | Save best training checkpoint for trajectory simulation | Deploying with `model.simulate(input)` |
+
+<Tip>
+Start with `single_step` to quickly filter bad configurations, then run a focused `multi_step` optimization on promising architectures.
+</Tip>
 
 ## Running Optimization
 

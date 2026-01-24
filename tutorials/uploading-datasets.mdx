@@ -3,8 +3,7 @@ title: Uploading Datasets
 description: Collect, save, and load datasets of your hardware for AI model training
 ---
 
-Dataset handling in the Onyx Engine is intentionally minimal, the goal is to drop in data and get models as quickly as possible. 
-Our requirements for data formatting follow general best practices for AI modeling that are applicable to any training framework.
+Dataset handling in the Onyx Engine is intentionally minimal, there are no special file types or elaborate schemas to learn. The goal is to drop in data and train models as quickly as possible. 
 
 ## Collecting Good Data
 
@@ -63,11 +62,25 @@ print(dataset.dataframe.head())
 
 ## Data Format Requirements
 
+Our requirements for data formatting follow general best practices for AI modeling that are applicable to any training framework.
+
 Before training, your data will need to be a time series with:
 
-- **Consistent time step**: The time delta between all rows should be the same (eg. 0.001s)
-- **Numeric columns**: All features must be numeric (Onyx converts to float32 for efficiency)
-- **No missing values**: You should drop rows with NaN values or use interpolation to fill them in 
+- **Labeled columns**: Each column/feature in your dataset should have a unique name
+- **Numeric columns**: All features must be numeric (Onyx converts to `float32` for efficiency)
+- **Consistent time step**: The time delta between all rows should be the same (eg. `0.001s`)
+- **No missing values**: You should drop rows with `NaN` values or use interpolation to fill them in 
+
+Here is an example `.csv` file that could immediately be used for training:
+```csv
+time_s,acceleration,velocity,position,control_input
+0.000,0.12,0.0,0.0,0.5
+0.001,0.15,0.0012,0.0,0.5
+0.002,0.18,0.0027,0.00001,0.5
+0.003,0.14,0.0041,0.00003,0.5
+0.004,0.10,0.0052,0.00005,0.5
+0.005,0.08,0.0063,0.00007,0.5
+```
 
 ## Saving Datasets
 

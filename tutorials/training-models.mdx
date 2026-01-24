@@ -3,7 +3,7 @@ title: Training Models
 description: Configure and train AI models on your hardware data
 ---
 
-This tutorial covers the complete workflow for training models in Onyx Engine, from defining your model structure to monitoring training progress.
+This tutorial covers the complete workflow for training models in Onyx Engine.
 
 ## Complete Training Example
 
@@ -57,7 +57,7 @@ training_config = TrainingConfig(
 
 # Start training
 onyx.train_model(
-    model_name='my_first_model',
+    model_name='example_model',
     model_config=model_config,
     dataset_name='example_data',
     training_config=training_config,
@@ -70,7 +70,7 @@ To make your life easier for hardware dynamics modeling, Onyx provides some buil
 
 ### Outputs
 
-Outputs are the features your model predicts. You can define multiple outputs and include `parent` and `relation` to derive outputs from other outputs.
+Outputs are the features your model predicts. You can define multiple outputs and include `parent` and `relation` to derive outputs from other outputs. See [`Output`](/api-reference/output) for the full API.
 
 ```python
 from onyxengine.modeling import Output
@@ -84,7 +84,7 @@ outputs = [
 
 ### Inputs
 
-Inputs are the features fed into the model to make predictions. Similarly, you can define multiple inputs and include `parent` and `relation` to derive inputs from both outputs and other inputs.
+Inputs are the features fed into the model to make predictions. Similarly, you can define multiple inputs and include `parent` and `relation` to derive inputs from both outputs and other inputs. See [`Input`](/api-reference/input) for the full API.
 
 ```python
 from onyxengine.modeling import Input
@@ -135,10 +135,10 @@ Model input/output names must be unique.
 ### Feature Scaling
 
 When training AI models, it's important to scale inputs/outputs so that they are in similar ranges. 
-For example, if you were training a model with outputs `Pressure [Pascal]` and `Torque [Newton-Meters]`, the values for pressure (and therefore loss/gradients) would be much larger than the values for torque, which would encourage the model to focus on learning to predict pressure and potentially ignore torque.
+For example, if you were training a model with outputs `Pressure [Pascal]` and `Torque [Newton-Meters]`, the values for pressure (and therefore loss/gradients) would be much larger than the values for torque, which can encourage the model to focus on learning to predict pressure and potentially ignore torque.
 
 To address this, it's typical to scale all features to have a mean of `0` and standard deviation of `1`, or range from `[-1, 1]` or `[0, 1]`. 
-Keeping track of the scaling factors of each feature for use in both training and deployment is prone to error, so Onyx keeps the scaling factors bundled with each model version for you:
+Keeping track of the scaling factors of each feature for use in both training and deployment is prone to error, so Onyx automatically calculates the scaling factors and bundles them with each model for you:
 - `train_mean`: The mean of the dataset feature during training
 - `train_std`: The standard deviation of the dataset feature during training
 - `train_min`: The minimum value of the dataset feature during training
@@ -204,9 +204,17 @@ Input(name='pwm_input', dataset_feature='duty', scale=[0.0, 1.0]),     # 0–100
 
 ## Model Configuration
 
-### MLP (Multi-Layer Perceptron)
+Model configurations (eg. [`MLPConfig`](/api-reference/mlp-config), [`RNNConfig`](/api-reference/rnn-config), [`TransformerConfig`](/api-reference/transformer-config)) are separate from the actual model class (`MLP`, `RNN`, `Transformer`), to make it easier to manage configurations.
 
-Best for systems with relatively simple dynamics:
+The following configuration parameters are common to all model configurations:
+- `outputs`: List of model outputs
+- `inputs`: List of model inputs
+- `dt`: Time step for model (does not need to match the dataset time step)
+- `sequence_length`: The number of previous time steps the model sees as a history window
+
+### MLP ([`MLPConfig`](/api-reference/mlp-config))
+
+Best for systems with relatively simple dynamics or for fast inference:
 
 ```python
 from onyxengine.modeling import MLPConfig
@@ -214,17 +222,17 @@ from onyxengine.modeling import MLPConfig
 model_config = MLPConfig(
     outputs=outputs,
     inputs=inputs,
-    dt=0.0025,              # Time step (must match dataset)
-    sequence_length=8,       # Input history length
+    dt=0.0025,               
+    sequence_length=5,       
     hidden_layers=3,         # Number of hidden layers
     hidden_size=64,          # Neurons per layer
     activation='relu',       # Activation function
-    dropout=0.2,             # Regularization
+    dropout=0.1,             # Dropout rate for regularization
     bias=True                # Include bias terms
 )
 ```
 
-### RNN (Recurrent Neural Network)
+### RNN ([`RNNConfig`](/api-reference/rnn-config))
 
 Better for systems with complex temporal dependencies:
 
@@ -237,14 +245,14 @@ model_config = RNNConfig(
     dt=0.0025,
     sequence_length=10,
     rnn_type='LSTM',         # 'RNN', 'LSTM', or 'GRU'
-    hidden_layers=2,
-    hidden_size=64,
-    dropout=0.1,
-    bias=True
+    hidden_layers=2,         # Number of RNN layers
+    hidden_size=64,          # Hidden units per layer
+    dropout=0.1,             # Dropout rate for regularization
+    bias=True                # Include bias terms
 )
 ```
 
-### Transformer
+### Transformer ([`TransformerConfig`](/api-reference/transformer-config))
 
 Powerful for capturing long-range dependencies:
 
@@ -255,32 +263,33 @@ model_config = TransformerConfig(
     outputs=outputs,
     inputs=inputs,
     dt=0.0025,
-    sequence_length=10,
+    sequence_length=20,
     n_layer=2,               # Transformer layers
     n_head=4,                # Attention heads
-    n_embd=64,               # Embedding dimension
-    dropout=0.2,
-    bias=True
+    n_embd=64,               # Embedding dimension (must be divisible by n_head)
+    dropout=0.1,             # Dropout rate for regularization
+    bias=True                # Include bias terms
 )
 ```
 
-<Note>
-For `TransformerConfig`, `n_embd` must be divisible by `n_head`.
-</Note>
-
 ## Training Configuration
+
+The [`TrainingConfig`](/api-reference/training-config) class defines parameters for training the model you've configured.
 
 ```python
 from onyxengine.modeling import TrainingConfig, AdamWConfig
 
 training_config = TrainingConfig(
-    training_iters=2000,          # Total training iterations
-    train_batch_size=1024,        # Samples per batch
-    train_val_split_ratio=0.9,    # Train/validation split
-    test_dataset_size=500,        # Samples for test visualization
-    checkpoint_type='single_step', # Optimization target
-    optimizer=AdamWConfig(lr=3e-4, weight_decay=1e-2),
-    lr_scheduler=None             # Optional learning rate scheduler
+    training_iters=2000,           # Total training iterations (how long to train)
+    train_batch_size=1024,         # Samples per batch (generally leave as is)
+    train_val_split_ratio=0.9,     # Train/validation split (generally leave as is)
+    test_dataset_size=500,         # Samples to set aside for platform visuals
+    checkpoint_type='single_step', # Training checkpoint type (see below)
+    optimizer=AdamWConfig(         # Optimizer config (see below)
+        lr=3e-4,                   
+        weight_decay=1e-2          
+    ),
+    lr_scheduler=None              # Learning rate scheduler config (see below)
 )
 ```
 
@@ -288,41 +297,50 @@ training_config = TrainingConfig(
 
 | Type | Description | Use Case |
 |------|-------------|----------|
-| `'single_step'` | Optimize for next-step prediction | General training, debugging |
-| `'multi_step'` | Optimize for trajectory simulation | Final model selection |
+| `'single_step'` | Save best training checkpoint for next-step prediction | Deploying with `model(input)` |
+| `'multi_step'` | Save best training checkpoint for trajectory simulation | Deploying with `model.simulate(input)` |
 
 <Tip>
-Start with `single_step` to verify your model learns the dynamics, then switch to `multi_step` for deployment-ready models.
+Start with `single_step` to verify your model learns the dynamics, then switch to `multi_step` if you're using the `.simulate()` method in deployment.
 </Tip>
 
 ### Optimizers
 
-**AdamW** (recommended for most cases):
+Optimizers are responsible for updating the model's weights during training, and can use an accompanying `lr_scheduler` (more below). As such, the [`OptimizerConfig`](/api-reference/optimizer-configs) can have a significant impact on how well the model learns. 
+This is an area where model optimization can be particularly useful, but we recommend first verifying you can train a simple model that shows signs of learning your dynamics.
+
+A good starting baseline is the [`AdamWConfig`](/api-reference/optimizer-configs#adamwconfig) with a learning rate of `3e-4` to `3e-5` and weight decay of `1e-2` to `1e-3`.
+
+**AdamW ([`AdamWConfig`](/api-reference/optimizer-configs#adamwconfig))** (recommended for most cases):
 
 ```python
 from onyxengine.modeling import AdamWConfig
 
 optimizer = AdamWConfig(
-    lr=3e-4,           # Learning rate
-    weight_decay=1e-2  # L2 regularization
+    lr=3e-4,           # Learning rate (higher = more aggressive learning)
+    weight_decay=1e-2  # L2 regularization (higher = more regularization)
 )
 ```
 
-**SGD** (for fine-tuning or specific cases):
+**SGD ([`SGDConfig`](/api-reference/optimizer-configs#sgdconfig))**:
 
 ```python
 from onyxengine.modeling import SGDConfig
 
 optimizer = SGDConfig(
-    lr=1e-3,
-    weight_decay=1e-4,
-    momentum=0.9
+    lr=1e-3,           # Learning rate
+    weight_decay=1e-4, # L2 regularization
+    momentum=0.9       # Momentum factor
 )
 ```
 
 ### Learning Rate Schedulers
 
-**Cosine Decay with Warmup**:
+The `lr_scheduler` is used to adjust the learning rate used by the `optimizer` over the course of training. This is a tradeoff that can help the model learn efficiently (fewer iterations) with larger learning rates, while also squeezing out more performance with fine-tuned weight updates from smaller learning rates when close to convergence.
+
+The default `lr_scheduler` is `None`, which means the optimizer will use a constant learning rate. We recommend starting with `None` and first finding a constant learning rate + simple model that shows stable learning on the kinds of data you're working with.
+
+**Cosine Decay with Warmup ([`CosineDecayWithWarmupConfig`](/api-reference/optimizer-configs#cosinedecaywithwarmupconfig))** (recommended for most cases):
 
 ```python
 from onyxengine.modeling import CosineDecayWithWarmupConfig
@@ -335,7 +353,7 @@ lr_scheduler = CosineDecayWithWarmupConfig(
 )
 ```
 
-**Cosine Annealing with Warm Restarts**:
+**Cosine Annealing with Warm Restarts ([`CosineAnnealingWarmRestartsConfig`](/api-reference/optimizer-configs#cosineannealingwarmrestartsconfig))**:
 
 ```python
 from onyxengine.modeling import CosineAnnealingWarmRestartsConfig
@@ -351,9 +369,9 @@ lr_scheduler = CosineAnnealingWarmRestartsConfig(
 
 ```python
 onyx.train_model(
-    model_name='my_model',           # Name for the trained model
+    model_name='example_model',           # Name for the trained model
     model_config=model_config,
-    dataset_name='my_dataset',       # Dataset to train on
+    dataset_name='example_data',       # Dataset to train on
     dataset_version_id=None,         # Optional: specific dataset version
     training_config=training_config,
 )
@@ -363,44 +381,54 @@ Monitor training progress via the [Engine Platform](https://engine.onyx-robotics
 
 ## After Training
 
-### Load Your Model
+The trained model is automatically saved, versioned, and traced in the Engine to be pulled directly from code. The [`onyx.load_model`](/api-reference/load-model) function returns a full model object as either a [`MLP`](/api-reference/mlp), [`RNN`](/api-reference/rnn), or [`Transformer`](/api-reference/transformer), depending on the model configuration.
+
+### Load a Model (latest version)
 
 ```python
+import torch
 from onyxengine import Onyx
 
+# Load the latest model version
 onyx = Onyx()
-model = onyx.load_model('my_model')
-print(model.config)
+model = onyx.load_model('example_model')
+print(model.config.model_dump_json(indent=2))
+
+# Make a single prediction
+batch_size = 1
+sequence_length = model.config.sequence_length
+num_inputs = len(model.config.inputs)
+x = torch.randn(batch_size, sequence_length, num_inputs)
+with torch.no_grad():
+    output = model(x)
+print("\nModel Prediction:\n", output)
 ```
 
-### Load a Specific Version
+### Load a Model (specific version)
+
+It is recommended to specify a specific `version_id` when loading a model to both select the best performing version, and to ensure your code is reproducible.
 
 ```python
-from onyxengine import Onyx
-
-onyx = Onyx()
-model = onyx.load_model('my_model', version_id='dcfec841-1748-47e2-b6c7-3c821cc69b4a')
+model = onyx.load_model('example_model', version_id='dcfec841-1748-47e2-b6c7-3c821cc69b4a')
 ```
 
-## Tips for Better Training
+### Load a Model (local offline mode)
 
-<AccordionGroup>
-  <Accordion title="Start with more sequence length">
-    If your initial results are poor, try increasing `sequence_length`. This gives the model more temporal context.
-  </Accordion>
+To load the model without downloading it from the Engine, you can use the `mode='offline'` parameter. This will only load the model from the local cache (more below), and will not check for updates from the Engine.
 
-  <Accordion title="Match dt to your data">
-    The `dt` parameter must match your dataset's actual time step. Incorrect values cause integration errors during simulation.
-  </Accordion>
+You will need to have previously downloaded the model files (.pt and .json) and have them in the local cache directory (`[SCRIPT_DIRECTORY]/.onyx/models/`).
 
-  <Accordion title="Use dropout for regularization">
-    Values between 0.1 and 0.3 typically work well. Increase if you see overfitting (training loss much lower than validation loss).
-  </Accordion>
+```python
+model = onyx.load_model('example_model', mode='offline')
+```
 
-  <Accordion title="Try different architectures">
-    If an MLP isn't capturing your dynamics, try an RNN or Transformer. Each architecture has different strengths for different system types.
-  </Accordion>
-</AccordionGroup>
+### Local Caching
+
+Models are cached locally after the first download. The SDK automatically:
+
+1. Checks if the local version matches the requested version
+2. Downloads only if the local cache is outdated
+3. Stores files in `[SCRIPT_DIRECTORY]/.onyx/models/`
 
 ## Next Steps
 

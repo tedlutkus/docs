@@ -19,15 +19,15 @@ from onyxengine.modeling import (
     AdamWConfig,
 )
 
-# Initialize the client
+# Initialize the client (defaults to ONYX_API_KEY env var)
 onyx = Onyx()
 
-# Define model structure
+# Define model outputs and inputs
 outputs = [
-    Output(name='acceleration_predicted'),
+    Output(name='acceleration'),
 ]
 inputs = [
-    Input(name='velocity', parent='acceleration_predicted', relation='derivative'),
+    Input(name='velocity', parent='acceleration', relation='derivative'),
     Input(name='position', parent='velocity', relation='derivative'),
     Input(name='control_input'),
 ]
@@ -57,62 +57,150 @@ training_config = TrainingConfig(
 
 # Start training
 onyx.train_model(
-    model_name='example_model',
+    model_name='my_first_model',
     model_config=model_config,
-    dataset_name='example_train_data',
+    dataset_name='example_data',
     training_config=training_config,
 )
 ```
 
-## Defining Model Structure
+## Defining Model Inputs and Outputs
+
+To make your life easier for hardware dynamics modeling, Onyx provides some built-in tools for creating inputs/outputs with **physical relationships**, **traceable naming**, and **feature scaling**. 
 
 ### Outputs
 
-Outputs are the features your model predicts. Typically this is the derivative or delta of your system state:
+Outputs are the features your model predicts. You can define multiple outputs and include `parent` and `relation` to derive outputs from other outputs.
 
 ```python
-outputs = [
-    Output(name='acceleration_predicted'),
-]
-```
+from onyxengine.modeling import Output
 
-For multi-output models:
-
-```python
 outputs = [
-    Output(name='acceleration_x'),
-    Output(name='acceleration_y'),
-    Output(name='acceleration_z'),
+    Output(name='jerk'),
+    Output(name='acceleration', parent='jerk', relation='derivative'),
+    Output(name='temperature_delta')
 ]
 ```
 
 ### Inputs
 
-Inputs include both **states** (derived from outputs) and **external inputs** (known values):
+Inputs are the features fed into the model to make predictions. Similarly, you can define multiple inputs and include `parent` and `relation` to derive inputs from both outputs and other inputs.
 
 ```python
-inputs = [
-    # States - derived from model outputs
-    Input(name='velocity', parent='acceleration_predicted', relation='derivative'),
-    Input(name='position', parent='velocity', relation='derivative'),
+from onyxengine.modeling import Input
 
-    # External inputs - known at each timestep
+inputs = [
+    # Feed back acceleration to the model as an input
+    Input(name='acceleration_feedback', parent='acceleration', relation='equal'),
+    # Derive velocity and position from acceleration
+    Input(name='velocity', parent='acceleration', relation='derivative'),
+    Input(name='position', parent='velocity', relation='derivative'),
+    # Sometimes delta values can be more useful/intuitive versus derivatives
+    Input(name='temperature', parent='temperature_delta', relation='delta'),
     Input(name='control_input'),
-    Input(name='load_force'),
 ]
 ```
 
-States define how the simulation rolls forward. The `relation` parameter specifies the mathematical relationship:
+### Feature Relationships
+
+The `parent` parameter specifies the feature to derive from. The `relation` parameter specifies the mathematical relationship:
 
 | Relation | Equation | Use Case |
 |----------|----------|----------|
-| `'derivative'` | `state[t+1] = state[t] + parent[t] * dt` | Velocity from acceleration |
-| `'delta'` | `state[t+1] = state[t] + parent[t]` | Position from displacement |
-| `'equal'` | `state[t+1] = parent[t]` | Direct assignment |
+| `'derivative'` | `state[t+1] = state[t] + parent[t] * dt` | Predicting/using time derivatives |
+| `'delta'` | `state[t+1] = state[t] + parent[t]` | Predicting more general deltas |
+| `'equal'` | `state[t+1] = parent[t]` | Feed output back as input |
 
-<Tip>
-The `name` parameter should match the column name in your dataset. If they differ, use `dataset_feature` to specify the dataset column name.
-</Tip>
+
+### Feature Naming
+
+By default, the `name` parameter will be used to find the input/output's matching feature in the dataset when training the model. If you want to use a different name for the input/output, you can use the `dataset_feature` parameter.
+
+```python
+# Model input name matches the dataset feature name
+Input(name='encoder_position_radians')
+
+# Model input 'position' uses the 'encoder_position_radians' dataset feature
+Input(name='position', dataset_feature='encoder_position_radians')
+
+# Dataset features can be used multiple times
+Input(name='current_position', dataset_feature='encoder_position_radians')
+Output(name='next_position_pred', dataset_feature='encoder_position_radians')
+```
+
+<Note>
+Model input/output names must be unique.
+</Note>
+
+### Feature Scaling
+
+When training AI models, it's important to scale inputs/outputs so that they are in similar ranges. 
+For example, if you were training a model with outputs `Pressure [Pascal]` and `Torque [Newton-Meters]`, the values for pressure (and therefore loss/gradients) would be much larger than the values for torque, which would encourage the model to focus on learning to predict pressure and potentially ignore torque.
+
+To address this, it's typical to scale all features to have a mean of `0` and standard deviation of `1`, or range from `[-1, 1]` or `[0, 1]`. 
+Keeping track of the scaling factors of each feature for use in both training and deployment is prone to error, so Onyx keeps the scaling factors bundled with each model version for you:
+- `train_mean`: The mean of the dataset feature during training
+- `train_std`: The standard deviation of the dataset feature during training
+- `train_min`: The minimum value of the dataset feature during training
+- `train_max`: The maximum value of the dataset feature during training
+- `scale`: The scaling method used, either `"mean"` or `[min, max]` (see section below)
+
+```json
+{
+    "name": "example_model",
+    "type": "model",
+    "created_at": "2026-01-20T19:56:25.969196+00:00",
+    "config": {
+        "type": "rnn",
+        "outputs": [
+            {
+                "type": "output",
+                "name": "acceleration",
+                "dataset_feature": "acceleration",
+                "scale": "mean",
+                "parent": None,
+                "relation": None,
+                "train_mean": -5.359800977241818,
+                "train_std": 4.525139292151637,
+                "train_min": -19.051991812957425,
+                "train_max": 0.5755097293625168,
+            }
+        ],
+        "inputs": [
+            {
+                "type": "input",
+                "name": "velocity",
+                "dataset_feature": "velocity",
+                "scale": "mean",
+                "parent": None,
+                "relation": None,
+                "train_mean": 4.896938152458872,
+                "train_std": 6.035669440028341,
+                "train_min": -0.8852670185723328,
+                "train_max": 30.22476247402063,
+            },
+        ...
+
+```
+
+The `scale` parameter controls how model inputs/outputs are scaled:
+
+- **`"mean"`** (default): Scales the feature to have a mean of `0` and std of `1`.
+- **`[min, max]`**: For dataset features with known physical bounds, scales from `[min, max]` to `[-1, 1]`.
+
+Often, just leaving the default `"mean"` scaling is fine for most features (bounded or not).
+
+```python
+from onyxengine.modeling import Input, Output
+
+# Mean scaling (default): always use when feature distribution is unknown
+Output(name='acceleration')
+Input(name='velocity', scale='mean')
+
+# Min-max scaling: can be used when feature has known min/max (e.g. voltage 0–5 V, PWM 0–1)
+Input(name='voltage', dataset_feature='voltage_V', scale=[0.0, 5.0]),   # 0–5 V → [-1, 1]
+Input(name='pwm_input', dataset_feature='duty', scale=[0.0, 1.0]),     # 0–100% → [-1, 1]
+```
 
 ## Model Configuration
 

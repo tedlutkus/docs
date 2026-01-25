@@ -47,26 +47,14 @@
               "tutorials/uploading-datasets",
               "tutorials/training-models",
               "tutorials/optimizing-models",
-              "tutorials/simulating-models"
+              "tutorials/simulating-with-models"
             ]
           },
           {
             "group": "Concepts",
             "icon": "lightbulb",
             "pages": [
-              "concepts/model-architectures",
-              "concepts/feature-engineering",
-              "concepts/training-configuration"
-            ]
-          },
-          {
-            "group": "Platform",
-            "icon": "monitor",
-            "pages": [
-              "platform/overview",
-              "platform/uploading-datasets",
-              "platform/training-via-ui",
-              "platform/viewing-results"
+              "concepts/model-architectures"
             ]
           }
         ]

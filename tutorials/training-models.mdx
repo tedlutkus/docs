@@ -272,6 +272,117 @@ model_config = TransformerConfig(
 )
 ```
 
+## Optimizers
+
+Optimizers are responsible for updating the model's weights during training, and can use an accompanying `lr_scheduler` (more below). As such, the [`OptimizerConfig`](/api-reference/optimizer-configs) can have a significant impact on how well the model learns. 
+This is an area where model optimization can be particularly useful, but we recommend first verifying you can train a simple model that shows signs of learning your dynamics.
+
+A good starting baseline is the [`AdamWConfig`](/api-reference/optimizer-configs#adamwconfig) with a learning rate of `3e-4` to `3e-5` and weight decay of `1e-2` to `1e-3`.
+
+### AdamW ([`AdamWConfig`](/api-reference/optimizer-configs#adamwconfig)):
+
+**Recommended for most cases.**
+
+```python
+from onyxengine.modeling import AdamWConfig
+
+optimizer = AdamWConfig(
+    lr=3e-4,           # Learning rate (higher = more aggressive learning)
+    weight_decay=1e-2  # L2 regularization (higher = more regularization)
+)
+```
+
+### SGD ([`SGDConfig`](/api-reference/optimizer-configs#sgdconfig)):
+
+```python
+from onyxengine.modeling import SGDConfig
+
+optimizer = SGDConfig(
+    lr=1e-3,           # Learning rate
+    weight_decay=1e-4, # L2 regularization
+    momentum=0.9       # Momentum factor
+)
+```
+
+## Learning Rate Schedulers
+
+The `lr_scheduler` is used to adjust the learning rate used by the `optimizer` over the course of training. This is a tradeoff that can help the model learn efficiently (fewer iterations) with larger learning rates, while also squeezing out more performance with fine-tuned weight updates from smaller learning rates when close to convergence.
+
+The default `lr_scheduler` is `None`, which means the optimizer will use a constant learning rate. We recommend starting with `None` and first finding a constant learning rate + simple model that shows stable learning on the kinds of data you're working with.
+
+### No Scheduler
+
+Use a constant learning rate:
+
+```python
+training_config = TrainingConfig(
+    optimizer=AdamWConfig(lr=3e-4),
+    lr_scheduler=None  # Constant learning rate
+)
+```
+
+### Cosine Decay with Warmup
+
+Learning rate starts low, linearly warms up to peak, then decays smoothly until the minimum learning rate is reached. **Recommended for most cases.**
+
+```python
+from onyxengine.modeling import CosineDecayWithWarmupConfig
+
+lr_scheduler = CosineDecayWithWarmupConfig(
+    max_lr=3e-4,        # Peak learning rate
+    min_lr=3e-5,        # Final learning rate
+    warmup_iters=200,   # Warmup period
+    decay_iters=1000    # Decay period
+)
+```
+
+**Learning rate curve:**
+```
+LR
+│   ╭───────╮
+│  ╱         ╲
+│ ╱           ╲____
+│╱
+└────────────────── Iterations
+  ↑        ↑
+  warmup   decay
+```
+
+**When to use:**
+- Standard choice for most training runs
+- When you want smooth convergence to a minimum
+
+### Cosine Annealing with Warm Restarts
+
+Periodic cosine decay with restarts that can lengthen over time.
+
+```python
+from onyxengine.modeling import CosineAnnealingWarmRestartsConfig
+
+lr_scheduler = CosineAnnealingWarmRestartsConfig(
+    T_0=500,           # Initial cycle length
+    T_mult=2,          # Cycle length multiplier
+    eta_min=1e-5       # Minimum learning rate
+)
+```
+
+**Learning rate curve (T_mult=2):**
+```
+LR
+│╲  ╲    ╲
+│ ╲  ╲    ╲
+│  ╲  ╲    ╲____
+│   ╲  ╲
+└────────────────── Iterations
+ ↑   ↑     ↑
+ T_0 2*T_0 4*T_0
+```
+
+**When to use:**
+- Finding multiple local minima
+- When stuck in suboptimal solutions
+- Longer training runs
+
 ## Training Configuration
 
 The [`TrainingConfig`](/api-reference/training-config) class defines parameters for training the model you've configured.
@@ -303,67 +414,6 @@ training_config = TrainingConfig(
 <Tip>
 Start with `single_step` to verify your model learns the dynamics, then switch to `multi_step` if you're using the `.simulate()` method in deployment.
 </Tip>
-
-### Optimizers
-
-Optimizers are responsible for updating the model's weights during training, and can use an accompanying `lr_scheduler` (more below). As such, the [`OptimizerConfig`](/api-reference/optimizer-configs) can have a significant impact on how well the model learns. 
-This is an area where model optimization can be particularly useful, but we recommend first verifying you can train a simple model that shows signs of learning your dynamics.
-
-A good starting baseline is the [`AdamWConfig`](/api-reference/optimizer-configs#adamwconfig) with a learning rate of `3e-4` to `3e-5` and weight decay of `1e-2` to `1e-3`.
-
-**AdamW ([`AdamWConfig`](/api-reference/optimizer-configs#adamwconfig))** (recommended for most cases):
-
-```python
-from onyxengine.modeling import AdamWConfig
-
-optimizer = AdamWConfig(
-    lr=3e-4,           # Learning rate (higher = more aggressive learning)
-    weight_decay=1e-2  # L2 regularization (higher = more regularization)
-)
-```
-
-**SGD ([`SGDConfig`](/api-reference/optimizer-configs#sgdconfig))**:
-
-```python
-from onyxengine.modeling import SGDConfig
-
-optimizer = SGDConfig(
-    lr=1e-3,           # Learning rate
-    weight_decay=1e-4, # L2 regularization
-    momentum=0.9       # Momentum factor
-)
-```
-
-### Learning Rate Schedulers
-
-The `lr_scheduler` is used to adjust the learning rate used by the `optimizer` over the course of training. This is a tradeoff that can help the model learn efficiently (fewer iterations) with larger learning rates, while also squeezing out more performance with fine-tuned weight updates from smaller learning rates when close to convergence.
-
-The default `lr_scheduler` is `None`, which means the optimizer will use a constant learning rate. We recommend starting with `None` and first finding a constant learning rate + simple model that shows stable learning on the kinds of data you're working with.
-
-**Cosine Decay with Warmup ([`CosineDecayWithWarmupConfig`](/api-reference/optimizer-configs#cosinedecaywithwarmupconfig))** (recommended for most cases):
-
-```python
-from onyxengine.modeling import CosineDecayWithWarmupConfig
-
-lr_scheduler = CosineDecayWithWarmupConfig(
-    max_lr=3e-4,        # Peak learning rate
-    min_lr=3e-5,        # Final learning rate
-    warmup_iters=200,   # Warmup period
-    decay_iters=1000    # Decay period
-)
-```
-
-**Cosine Annealing with Warm Restarts ([`CosineAnnealingWarmRestartsConfig`](/api-reference/optimizer-configs#cosineannealingwarmrestartsconfig))**:
-
-```python
-from onyxengine.modeling import CosineAnnealingWarmRestartsConfig
-
-lr_scheduler = CosineAnnealingWarmRestartsConfig(
-    T_0=500,           # Initial cycle length
-    T_mult=2,          # Cycle length multiplier
-    eta_min=1e-5       # Minimum learning rate
-)
-```
 
 ## Running Training
 
@@ -433,10 +483,10 @@ Models are cached locally after the first download. The SDK automatically:
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Optimizing Models" icon="sliders-horizontal" href="/tutorials/optimizing-models">
+  <Card title="Optimizing Models" icon="boxes" href="/tutorials/optimizing-models">
     Automatically search for the best hyperparameters
   </Card>
-  <Card title="Simulating Models" icon="play" href="/tutorials/simulating-models">
+  <Card title="Simulating with Models" icon="trending-up-down" href="/tutorials/simulating-with-models">
     Deploy your trained model for simulation
   </Card>
 </CardGroup>

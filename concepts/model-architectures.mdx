@@ -171,7 +171,6 @@ config = TransformerConfig(
 
 ### Limitations
 
-- Slowest to train
 - Memory usage scales quadratically with sequence length
 - May need more data to train effectively
 
@@ -186,40 +185,10 @@ config = TransformerConfig(
   <Step title="Try sequence length first">
     Before switching architectures, try increasing `sequence_length`. Often a longer MLP window captures enough temporal context.
   </Step>
-  <Step title="Move to RNN for temporal patterns">
-    If increasing sequence length helps but plateaus, try an LSTM or GRU. They're better at extracting patterns from longer sequences.
-  </Step>
-  <Step title="Consider Transformer for complex systems">
-    For systems with multiple interacting components or where relationships between distant timesteps matter, try a Transformer.
+  <Step title="Move to RNN or Transformer for temporal patterns">
+    If increasing sequence length helps but plateaus, try an LSTM/GRU or Transformer. RNNs extract patterns from longer sequences; Transformers suit systems with multiple interacting components or where relationships between distant timesteps matter.
   </Step>
 </Steps>
-
-### Quick Comparison
-
-```python
-# All architectures share the same interface
-from onyxengine.modeling import MLPConfig, RNNConfig, TransformerConfig
-
-# Same outputs and inputs work with any architecture
-outputs = [Output(name='acceleration')]
-inputs = [
-    Input(name='velocity', parent='acceleration', relation='derivative'),
-    Input(name='position', parent='velocity', relation='derivative'),
-    Input(name='control'),
-]
-
-# MLP: ~3,000 parameters for typical config
-mlp = MLPConfig(outputs=outputs, inputs=inputs, dt=0.01,
-                sequence_length=8, hidden_layers=2, hidden_size=32)
-
-# RNN: ~8,000 parameters for typical config
-rnn = RNNConfig(outputs=outputs, inputs=inputs, dt=0.01,
-                sequence_length=8, rnn_type='LSTM', hidden_layers=2, hidden_size=32)
-
-# Transformer: ~12,000 parameters for typical config
-transformer = TransformerConfig(outputs=outputs, inputs=inputs, dt=0.01,
-                                sequence_length=8, n_layer=2, n_head=4, n_embd=32)
-```
 
 ## Sequence Length Considerations
 
@@ -231,17 +200,3 @@ The `sequence_length` parameter affects all architectures differently:
 | RNN | More steps to process, similar parameter count |
 | Transformer | Quadratic increase in attention computation |
 
-<Tip>
-Start with `sequence_length=1` and increase until you see diminishing returns on validation loss.
-</Tip>
-
-## Next Steps
-
-<CardGroup cols={2}>
-  <Card title="Feature Engineering" icon="settings" href="/concepts/feature-engineering">
-    Define inputs, outputs, and state relationships
-  </Card>
-  <Card title="Training Configuration" icon="sliders-horizontal" href="/concepts/training-configuration">
-    Configure optimizers and schedulers
-  </Card>
-</CardGroup>
